@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>わが家の在庫管理</title>
+
+<!-- Supabaseと通信するためのライブラリをCDNから読み込みます -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: #f5f6f8;
+    color: #222;
+  }
+  .wrap {
+    max-width: 420px;
+    margin: 0 auto;
+    padding: 24px 20px 60px;
+    min-height: 100vh;
+  }
+  h1 {
+    font-size: 22px;
+    text-align: center;
+    margin: 20px 0 30px;
+  }
+  .card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 24px 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    color: #666;
+    margin: 14px 0 6px;
+  }
+  input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    font-size: 16px;
+  }
+  button {
+    width: 100%;
+    padding: 13px;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    margin-top: 16px;
+    cursor: pointer;
+  }
+  .btn-primary {
+    background: #2f8f5b;
+    color: #fff;
+  }
+  .btn-secondary {
+    background: #eef1ee;
+    color: #2f8f5b;
+  }
+  .btn-logout {
+    background: #f2e4e4;
+    color: #a33;
+  }
+  #message {
+    text-align: center;
+    font-size: 13px;
+    margin-top: 14px;
+    min-height: 18px;
+  }
+  .msg-error { color: #c0392b; }
+  .msg-ok { color: #2f8f5b; }
+  .hidden { display: none; }
+  .user-box {
+    text-align: center;
+  }
+  .user-box p {
+    font-size: 14px;
+    color: #555;
+  }
+  .placeholder {
+    margin-top: 24px;
+    padding: 20px;
+    border: 1px dashed #ccc;
+    border-radius: 10px;
+    text-align: center;
+    color: #999;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <h1>🏠 わが家の在庫管理</h1>
+
+  <!-- ログインしていないときに表示する画面 -->
+  <div id="auth-card" class="card">
+    <label for="email">メールアドレス</label>
+    <input type="email" id="email" placeholder="you@example.com">
+
+    <label for="password">パスワード(6文字以上)</label>
+    <input type="password" id="password" placeholder="••••••••">
+
+    <button class="btn-primary" id="login-btn">ログイン</button>
+    <button class="btn-secondary" id="signup-btn">はじめて使う人はこちら(新規登録)</button>
+
+    <div id="message"></div>
+  </div>
+
+  <!-- ログイン後に表示する画面 -->
+  <div id="logged-in-card" class="card user-box hidden">
+    <p>ログイン中: <strong id="user-email"></strong></p>
+    <button class="btn-logout" id="logout-btn">ログアウト</button>
+
+    <div class="placeholder">
+      ここに次のステップで「食材・日用品の一覧」が表示されるようになります。
+    </div>
+  </div>
+</div>
+
+<script>
+  // ▼▼▼ ここに先ほどコピーした接続情報を入れています ▼▼▼
+  const SUPABASE_URL = "https://duzqatnbkaewgcblgvvs.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1enFhdG5ia2Fld2djYmxndnZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3OTYxNDksImV4cCI6MjA5OTM3MjE0OX0.34Wp5tGK-gvp-Qd9hWb1XX0oaE1ELorPF74oA8VYJuE";
+  // ▲▲▲ ここまで ▲▲▲
+
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const authCard = document.getElementById("auth-card");
+  const loggedInCard = document.getElementById("logged-in-card");
+  const messageBox = document.getElementById("message");
+  const userEmailLabel = document.getElementById("user-email");
+
+  function showMessage(text, isError) {
+    messageBox.textContent = text;
+    messageBox.className = isError ? "msg-error" : "msg-ok";
+  }
+
+  // 画面の切り替え(ログイン中かどうかで表示を変える)
+  function renderAuthState(session) {
+    if (session && session.user) {
+      authCard.classList.add("hidden");
+      loggedInCard.classList.remove("hidden");
+      userEmailLabel.textContent = session.user.email;
+    } else {
+      authCard.classList.remove("hidden");
+      loggedInCard.classList.add("hidden");
+    }
+  }
+
+  // 新規登録ボタン
+  document.getElementById("signup-btn").addEventListener("click", async () => {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    if (!email || !password) {
+      showMessage("メールアドレスとパスワードを入力してください", true);
+      return;
+    }
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) {
+      showMessage("登録エラー: " + error.message, true);
+    } else {
+      showMessage("登録できました!確認メールが届いていればリンクをタップしてください。届いていなければそのままログインをお試しください。", false);
+    }
+  });
+
+  // ログインボタン
+  document.getElementById("login-btn").addEventListener("click", async () => {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    if (!email || !password) {
+      showMessage("メールアドレスとパスワードを入力してください", true);
+      return;
+    }
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      showMessage("ログインエラー: " + error.message, true);
+    } else {
+      showMessage("", false);
+      renderAuthState(data.session);
+    }
+  });
+
+  // ログアウトボタン
+  document.getElementById("logout-btn").addEventListener("click", async () => {
+    await supabase.auth.signOut();
+    renderAuthState(null);
+  });
+
+  // ページを開いたときに、すでにログイン済みかどうかを確認する
+  supabase.auth.getSession().then(({ data }) => {
+    renderAuthState(data.session);
+  });
+</script>
+
+</body>
+</html>
