@@ -452,9 +452,10 @@
 
     <div id="view-home" class="view">
       <div class="card">
+        <h2 style="margin-top:0;">商品を登録</h2>
         <div class="action-grid">
-          <button class="action-card" id="scan-btn"><i data-lucide="scan-line"></i><span>バーコード</span></button>
-          <button class="action-card" id="photo-btn"><i data-lucide="camera"></i><span>写真でAI判定</span></button>
+          <button class="action-card" id="scan-btn"><i data-lucide="scan-line"></i><span>バーコードで登録</span></button>
+          <button class="action-card" id="photo-btn"><i data-lucide="camera"></i><span>写真で登録</span></button>
         </div>
         <input type="file" accept="image/*" capture="environment" id="photo-input" class="hidden">
 
@@ -463,6 +464,54 @@
           <p class="scan-hint">バーコード全体が枠に収まる距離(10〜15cmくらい)で、明るい場所で数秒待ってください</p>
           <button class="btn-secondary" id="close-scanner-btn"><i data-lucide="x"></i> キャンセル</button>
         </div>
+
+        <button class="btn-secondary" id="goto-manual-add-btn"><i data-lucide="edit-3"></i> 手動で登録</button>
+        <div id="add-message"></div>
+      </div>
+
+      <div class="card" style="margin-top:14px;">
+        <h2 style="margin-top:0;">商品を消費</h2>
+        <div class="action-grid">
+          <button class="action-card" id="consume-scan-btn"><i data-lucide="scan-line"></i><span>バーコードで消費</span></button>
+          <button class="action-card" id="consume-photo-btn"><i data-lucide="camera"></i><span>写真で消費</span></button>
+        </div>
+        <input type="file" accept="image/*" capture="environment" id="consume-photo-input" class="hidden">
+
+        <div id="consume-scanner-wrap" class="hidden">
+          <div id="consume-reader"></div>
+          <p class="scan-hint">バーコード全体が枠に収まる距離(10〜15cmくらい)で、明るい場所で数秒待ってください</p>
+          <button class="btn-secondary" id="close-consume-scanner-btn"><i data-lucide="x"></i> キャンセル</button>
+        </div>
+
+        <button class="btn-secondary" id="goto-manual-consume-btn"><i data-lucide="edit-3"></i> 手動で消費登録</button>
+      </div>
+
+      <div id="review-section" class="card hidden" style="margin-top:14px;">
+        <span class="review-badge">AI判定結果</span>
+        <h2 style="margin-top:0;">写真から見つかった商品</h2>
+        <p class="review-note">内容を確認・修正してから登録してください。同じ名前の商品がすでにあれば、数量がまとめて加算されます。</p>
+        <div id="review-list"></div>
+        <button class="btn-primary" id="register-all-btn"><i data-lucide="check-check"></i> まとめて登録する</button>
+        <button class="btn-secondary" id="cancel-review-btn"><i data-lucide="x"></i> キャンセル</button>
+        <div id="review-message"></div>
+      </div>
+
+      <div id="consume-review-section" class="card hidden" style="margin-top:14px;">
+        <span class="review-badge" style="background:#FEE2E2; color:#B91C1C;">消費登録</span>
+        <h2 style="margin-top:0;">在庫から消費する商品</h2>
+        <p class="review-note">数量を確認し、必要であれば調整してから確定してください。「すべて消費」で在庫を0にできます。</p>
+        <div id="consume-review-list"></div>
+        <button class="btn-primary" id="confirm-consume-btn"><i data-lucide="check-check"></i> 消費する</button>
+        <button class="btn-secondary" id="cancel-consume-btn"><i data-lucide="x"></i> キャンセル</button>
+        <div id="consume-message"></div>
+      </div>
+    </div>
+
+    <!-- ========== 手動登録ページ ========== -->
+    <div id="view-manual-add" class="view hidden">
+      <button class="btn-secondary" onclick="switchView('home')"><i data-lucide="arrow-left"></i> ホームに戻る</button>
+      <div class="card" style="margin-top:14px;">
+        <h2 style="margin-top:0;">手動で登録</h2>
 
         <label for="item-name">商品名</label>
         <input type="text" id="item-name" placeholder="例: 牛乳">
@@ -495,21 +544,30 @@
         </div>
 
         <button class="btn-primary" id="add-item-btn"><i data-lucide="plus"></i> 登録する</button>
-        <div id="add-message"></div>
+        <div id="manual-add-message"></div>
+      </div>
+    </div>
+
+    <!-- ========== 手動消費登録ページ ========== -->
+    <div id="view-manual-consume" class="view hidden">
+      <button class="btn-secondary" onclick="switchView('home')"><i data-lucide="arrow-left"></i> ホームに戻る</button>
+      <div class="card" style="margin-top:14px;">
+        <h2 style="margin-top:0;">手動で消費登録</h2>
+        <label for="consume-search">商品を検索</label>
+        <input type="text" id="consume-search" placeholder="商品名で検索(例: 牛乳)">
+        <div id="consume-search-results"></div>
       </div>
 
-      <div id="review-section" class="card hidden">
-        <span class="review-badge">AI判定結果</span>
-        <h2 style="margin-top:0;">写真から見つかった商品</h2>
-        <p class="review-note">内容を確認・修正してから登録してください。同じ名前の商品がすでにあれば、数量がまとめて加算されます。</p>
-        <div id="review-list"></div>
-        <button class="btn-primary" id="register-all-btn"><i data-lucide="check-check"></i> まとめて登録する</button>
-        <button class="btn-secondary" id="cancel-review-btn"><i data-lucide="x"></i> キャンセル</button>
-        <div id="review-message"></div>
+      <div id="manual-consume-review-section" class="card hidden" style="margin-top:14px;">
+        <h2 style="margin-top:0;">消費する商品</h2>
+        <div id="manual-consume-review-list"></div>
+        <button class="btn-primary" id="manual-confirm-consume-btn"><i data-lucide="check-check"></i> 消費する</button>
+        <div id="manual-consume-message"></div>
       </div>
     </div>
 
     <div id="view-shopping" class="view hidden">
+
       <h2 style="margin-top:0;">買い物リスト</h2>
       <div class="card">
         <label for="shopping-name">買いたいもの(在庫にないものもOK)</label>
@@ -577,6 +635,9 @@
   const loggedInArea = document.getElementById("logged-in-area");
   const messageBox = document.getElementById("message");
   const addMessageBox = document.getElementById("add-message");
+  const manualAddMessageBox = document.getElementById("manual-add-message");
+  const consumeMessageBox = document.getElementById("consume-message");
+  const manualConsumeMessageBox = document.getElementById("manual-consume-message");
   const reviewMessageBox = document.getElementById("review-message");
   const shoppingMessageBox = document.getElementById("shopping-message");
   const userEmailLabel = document.getElementById("user-email");
@@ -630,6 +691,9 @@
   document.querySelectorAll(".nav-btn").forEach(btn => {
     btn.addEventListener("click", () => switchView(btn.dataset.view));
   });
+
+  document.getElementById("goto-manual-add-btn").addEventListener("click", () => switchView("manual-add"));
+  document.getElementById("goto-manual-consume-btn").addEventListener("click", () => switchView("manual-consume"));
 
   function renderAuthState(session) {
     if (session && session.user) {
@@ -686,13 +750,21 @@
 
   let html5QrCode = null;
   let currentBarcodeValue = null;
+  let scanMode = "register"; // "register" または "consume"
+  let activeScannerWrapId = "scanner-wrap";
 
-  document.getElementById("scan-btn").addEventListener("click", startScanner);
+  document.getElementById("scan-btn").addEventListener("click", () => startScanner("register"));
   document.getElementById("close-scanner-btn").addEventListener("click", stopScanner);
+  document.getElementById("consume-scan-btn").addEventListener("click", () => startScanner("consume"));
+  document.getElementById("close-consume-scanner-btn").addEventListener("click", stopScanner);
 
-  async function startScanner() {
-    document.getElementById("scanner-wrap").classList.remove("hidden");
-    html5QrCode = new Html5Qrcode("reader");
+  async function startScanner(mode) {
+    scanMode = mode;
+    activeScannerWrapId = mode === "consume" ? "consume-scanner-wrap" : "scanner-wrap";
+    const readerId = mode === "consume" ? "consume-reader" : "reader";
+
+    document.getElementById(activeScannerWrapId).classList.remove("hidden");
+    html5QrCode = new Html5Qrcode(readerId);
     const config = {
       fps: 10,
       qrbox: { width: 320, height: 200 },
@@ -718,7 +790,7 @@
       );
     } catch (err) {
       showMessage(addMessageBox, "カメラを起動できませんでした: " + (err && err.message ? err.message : err), true);
-      document.getElementById("scanner-wrap").classList.add("hidden");
+      document.getElementById(activeScannerWrapId).classList.add("hidden");
     }
   }
 
@@ -728,14 +800,19 @@
       try { html5QrCode.clear(); } catch (e) {}
       html5QrCode = null;
     }
-    document.getElementById("scanner-wrap").classList.add("hidden");
+    document.getElementById(activeScannerWrapId).classList.add("hidden");
   }
 
   async function onScanSuccess(decodedText) {
     await stopScanner();
-    currentBarcodeValue = decodedText;
-    showMessage(addMessageBox, "読み取りました(" + decodedText + ")。商品情報を検索中...", false);
-    await lookupBarcode(decodedText);
+    if (scanMode === "consume") {
+      showMessage(addMessageBox, "読み取りました(" + decodedText + ")。在庫を検索中...", false);
+      await handleConsumeBarcode(decodedText);
+    } else {
+      currentBarcodeValue = decodedText;
+      showMessage(addMessageBox, "読み取りました(" + decodedText + ")。商品情報を検索中...", false);
+      await lookupBarcode(decodedText);
+    }
   }
 
   async function lookupBarcode(barcode) {
@@ -747,14 +824,50 @@
         if (name) {
           document.getElementById("item-name").value = name;
           updateUnitSuggestions();
-          showMessage(addMessageBox, "商品名を自動入力しました。内容を確認して登録してください。", false);
+          showMessage(addMessageBox, "商品名を自動入力しました。「手動で登録」ページを開いて内容を確認してください。", false);
           return;
         }
       }
-      showMessage(addMessageBox, "商品情報が見つかりませんでした。商品名を手入力してください。", true);
+      showMessage(addMessageBox, "商品情報が見つかりませんでした。「手動で登録」から入力してください。", true);
     } catch (e) {
-      showMessage(addMessageBox, "検索に失敗しました。商品名を手入力してください。", true);
+      showMessage(addMessageBox, "検索に失敗しました。「手動で登録」から入力してください。", true);
     }
+  }
+
+  // ---------- バーコードによる消費登録 ----------
+
+  async function handleConsumeBarcode(barcode) {
+    const { data: byBarcode, error: barcodeError } = await supabaseClient
+      .from("items")
+      .select("id, name, unit, quantity")
+      .eq("barcode", barcode)
+      .limit(5);
+
+    if (!barcodeError && byBarcode && byBarcode.length > 0) {
+      showMessage(addMessageBox, "", false);
+      showConsumeReview(byBarcode, "consume-review-list", "consume-review-section");
+      return;
+    }
+
+    // バーコードだけでは見つからない場合、商品名を調べてから在庫を検索する
+    try {
+      const res = await fetch("https://world.openfoodfacts.org/api/v2/product/" + barcode + ".json");
+      const data = await res.json();
+      if (data.status === 1 && data.product) {
+        const name = data.product.product_name_ja || data.product.product_name || "";
+        if (name) {
+          const { data: byName } = await supabaseClient
+            .from("items").select("id, name, unit, quantity").ilike("name", "%" + name + "%").limit(5);
+          if (byName && byName.length > 0) {
+            showMessage(addMessageBox, "", false);
+            showConsumeReview(byName, "consume-review-list", "consume-review-section");
+            return;
+          }
+        }
+      }
+    } catch (e) {}
+
+    showMessage(addMessageBox, "在庫にこの商品が見つかりませんでした。「手動で消費登録」からお試しください。", true);
   }
 
   const TAG_RULES = [
@@ -1144,6 +1257,201 @@
     showMessage(addMessageBox, count + "件登録しました", false);
   });
 
+  // ---------- 消費登録(共通部分) ----------
+
+  // 消費対象カードのHTMLを組み立てる(バーコード・写真AI・手動検索すべてで共用)
+  function renderConsumeCardsHtml(items) {
+    return items.map(item => `
+      <div class="review-card consume-card" data-item-id="${item.id}" data-full-quantity="${item.quantity}">
+        <div class="item-name">${escapeHtml(item.name)}</div>
+        <p class="review-note">現在の在庫: ${item.quantity}${escapeHtml(item.unit)}</p>
+        <label>消費する数量</label>
+        <div class="row2">
+          <div>
+            <input type="number" class="consume-quantity" min="0" step="any" inputmode="decimal" value="${item.quantity}">
+          </div>
+          <div style="display:flex; align-items:flex-end;">
+            <button type="button" class="btn-secondary consume-all-btn" style="margin-top:12px;">すべて消費</button>
+          </div>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  function showConsumeReview(items, listId, sectionId) {
+    const listEl = document.getElementById(listId);
+    listEl.innerHTML = renderConsumeCardsHtml(items);
+    if (window.lucide) lucide.createIcons();
+    const sectionEl = document.getElementById(sectionId);
+    sectionEl.classList.remove("hidden");
+    sectionEl.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // 「すべて消費」ボタン(イベント委譲で、後から増えるカードにも対応)
+  document.addEventListener("click", (e) => {
+    const allBtn = e.target.closest(".consume-all-btn");
+    if (!allBtn) return;
+    const card = allBtn.closest(".consume-card");
+    card.querySelector(".consume-quantity").value = card.dataset.fullQuantity;
+  });
+
+  async function confirmConsume(containerId, messageBoxEl, onDone) {
+    const container = document.getElementById(containerId);
+    const cards = container.querySelectorAll(".consume-card");
+    if (cards.length === 0) {
+      showMessage(messageBoxEl, "消費する商品がありません", true);
+      return;
+    }
+
+    let count = 0;
+    for (const card of cards) {
+      const id = card.dataset.itemId;
+      const fullQty = Number(card.dataset.fullQuantity);
+      const consumeQty = Number(card.querySelector(".consume-quantity").value) || 0;
+      const newQty = Math.max(0, fullQty - consumeQty);
+      const { error } = await supabaseClient
+        .from("items")
+        .update({ quantity: newQty, updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (!error) {
+        await syncShoppingListForItem(id);
+        count++;
+      } else {
+        console.error("消費処理に失敗:", error);
+      }
+    }
+
+    showMessage(messageBoxEl, count + "件消費しました", false);
+    container.innerHTML = "";
+    if (onDone) onDone();
+  }
+
+  document.getElementById("confirm-consume-btn").addEventListener("click", async () => {
+    await confirmConsume("consume-review-list", consumeMessageBox, () => {
+      document.getElementById("consume-review-section").classList.add("hidden");
+      loadItems();
+      loadShoppingList();
+    });
+  });
+  document.getElementById("cancel-consume-btn").addEventListener("click", () => {
+    document.getElementById("consume-review-section").classList.add("hidden");
+    document.getElementById("consume-review-list").innerHTML = "";
+  });
+
+  // ---------- 写真AIによる消費登録 ----------
+
+  document.getElementById("consume-photo-btn").addEventListener("click", () => {
+    document.getElementById("consume-photo-input").click();
+  });
+
+  document.getElementById("consume-photo-input").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    showMessage(addMessageBox, "AIが商品を判定中です。少々お待ちください...", false);
+
+    try {
+      const base64Data = await fileToBase64(file);
+      const detected = await identifyProductsWithAI(base64Data, file.type);
+
+      if (!detected || detected.length === 0) {
+        showMessage(addMessageBox, "商品を判定できませんでした。「手動で消費登録」からお試しください。", true);
+        return;
+      }
+
+      // 検出した商品名をもとに、実際の在庫を検索する
+      const matched = [];
+      const seenIds = new Set();
+      for (const d of detected) {
+        const cleanName = (d.name || "").trim();
+        if (!cleanName) continue;
+        const { data: found } = await supabaseClient
+          .from("items").select("id, name, unit, quantity").ilike("name", "%" + cleanName + "%").limit(3);
+        (found || []).forEach(item => {
+          if (!seenIds.has(item.id)) {
+            seenIds.add(item.id);
+            matched.push(item);
+          }
+        });
+      }
+
+      if (matched.length === 0) {
+        showMessage(addMessageBox, "在庫に一致する商品が見つかりませんでした。「手動で消費登録」からお試しください。", true);
+        return;
+      }
+
+      showMessage(addMessageBox, "", false);
+      showConsumeReview(matched, "consume-review-list", "consume-review-section");
+    } catch (err) {
+      showMessage(addMessageBox, "判定エラー: " + err.message, true);
+    } finally {
+      e.target.value = "";
+    }
+  });
+
+  // ---------- 手動での消費登録(検索して選ぶ) ----------
+
+  document.getElementById("consume-search").addEventListener("input", async (e) => {
+    const term = e.target.value.trim();
+    const resultsEl = document.getElementById("consume-search-results");
+    if (!term) {
+      resultsEl.innerHTML = "";
+      return;
+    }
+    const { data, error } = await supabaseClient
+      .from("items")
+      .select("id, name, unit, quantity")
+      .ilike("name", "%" + term + "%")
+      .order("name")
+      .limit(10);
+
+    if (error || !data || data.length === 0) {
+      resultsEl.innerHTML = '<div class="empty-note">見つかりませんでした</div>';
+      return;
+    }
+
+    resultsEl.innerHTML = data.map(item => `
+      <div class="shopping-card manual search-result-row" style="cursor:pointer;"
+        data-id="${item.id}" data-name="${escapeHtml(item.name)}" data-unit="${escapeHtml(item.unit)}" data-quantity="${item.quantity}">
+        <div class="shopping-info">
+          <div class="shopping-name">${escapeHtml(item.name)}</div>
+          <div class="shopping-meta">在庫: ${item.quantity}${escapeHtml(item.unit)}</div>
+        </div>
+        <i data-lucide="plus-circle"></i>
+      </div>
+    `).join("");
+    if (window.lucide) lucide.createIcons();
+  });
+
+  document.getElementById("consume-search-results").addEventListener("click", (e) => {
+    const row = e.target.closest(".search-result-row");
+    if (!row) return;
+    addItemToManualConsumeList({
+      id: row.dataset.id,
+      name: row.dataset.name,
+      unit: row.dataset.unit,
+      quantity: Number(row.dataset.quantity)
+    });
+  });
+
+  function addItemToManualConsumeList(item) {
+    const listEl = document.getElementById("manual-consume-review-list");
+    if (listEl.querySelector('.consume-card[data-item-id="' + item.id + '"]')) return; // 重複追加を防ぐ
+    listEl.insertAdjacentHTML("beforeend", renderConsumeCardsHtml([item]));
+    if (window.lucide) lucide.createIcons();
+    document.getElementById("manual-consume-review-section").classList.remove("hidden");
+    document.getElementById("consume-search").value = "";
+    document.getElementById("consume-search-results").innerHTML = "";
+  }
+
+  document.getElementById("manual-confirm-consume-btn").addEventListener("click", async () => {
+    await confirmConsume("manual-consume-review-list", manualConsumeMessageBox, () => {
+      document.getElementById("manual-consume-review-section").classList.add("hidden");
+      loadItems();
+      loadShoppingList();
+    });
+  });
+
   async function loadItems() {
     let query = supabaseClient
       .from("items")
@@ -1264,7 +1572,7 @@
     const expiry = document.getElementById("item-expiry").value || null;
 
     if (!name) {
-      showMessage(addMessageBox, "商品名を入力してください", true);
+      showMessage(manualAddMessageBox, "商品名を入力してください", true);
       return;
     }
 
@@ -1274,11 +1582,11 @@
     });
 
     if (!id) {
-      showMessage(addMessageBox, "登録に失敗しました。もう一度お試しください。", true);
+      showMessage(manualAddMessageBox, "登録に失敗しました。もう一度お試しください。", true);
       return;
     }
 
-    showMessage(addMessageBox, "登録しました(同じ名前の商品があれば数量をまとめました)", false);
+    showMessage(manualAddMessageBox, "登録しました(同じ名前の商品があれば数量をまとめました)", false);
     document.getElementById("item-name").value = "";
     document.getElementById("item-unit").value = "個";
     document.getElementById("item-unit-suggestions").innerHTML = "";
