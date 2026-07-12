@@ -534,3 +534,74 @@
     color: var(--text-muted);
     flex-shrink: 0;
   }
+
+  /* --- 食材を登録: アコーディオンUI --- */
+  .accordion-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+  }
+  .accordion-panel-header h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .accordion-item {
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .accordion-item:last-of-type { margin-bottom: 0; }
+  .accordion-header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: var(--bg);
+    border: none;
+    padding: 16px;
+    text-align: left;
+    height: auto;
+  }
+  .accordion-header:hover { background: var(--accent-tint); }
+  .accordion-header.open { background: var(--accent-tint); }
+  .accordion-header-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+  }
+  .accordion-chevron {
+    width: 20px; height: 20px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    transition: transform 0.25s ease;
+  }
+  .accordion-header.open .accordion-chevron {
+    transform: rotate(180deg);
+    color: var(--primary);
+  }
+
+  /* 高さが可変なコンテンツでも滑らかにスライド開閉できるgrid-rowsアニメーション */
+  .accordion-body {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.3s ease;
+    background: var(--card);
+  }
+  .accordion-body.open {
+    grid-template-rows: 1fr;
+  }
+  .accordion-body-inner {
+    overflow: hidden;
+    min-height: 0;
+    padding: 0 16px;
+    transition: padding 0.25s ease;
+  }
+  .accordion-body.open .accordion-body-inner {
+    padding: 18px 16px 20px;
+  }
