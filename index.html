@@ -223,6 +223,39 @@
     color: #888;
     margin: 4px 0 0;
   }
+
+  /* --- 買い物リスト --- */
+  .shopping-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    border-left: 5px solid #2f8f5b;
+  }
+  .shopping-card.manual { border-left-color: #999; }
+  .shopping-info { flex: 1; min-width: 0; }
+  .shopping-name { font-size: 15px; font-weight: 600; }
+  .shopping-meta {
+    font-size: 12px;
+    color: #888;
+    margin-top: 2px;
+  }
+  .check-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: #eef1ee;
+    color: #2f8f5b;
+    font-size: 18px;
+    line-height: 1;
+    padding: 0;
+    flex-shrink: 0;
+  }
 </style>
 </head>
 <body>
@@ -306,6 +339,23 @@
       <div id="review-message"></div>
     </div>
 
+    <h2>🛒 買い物リスト</h2>
+    <div class="card">
+      <label for="shopping-name">買いたいもの(在庫にないものもOK)</label>
+      <input type="text" id="shopping-name" placeholder="例: 来客用のお菓子">
+      <div class="row2">
+        <div>
+          <label for="shopping-quantity">数量</label>
+          <input type="number" id="shopping-quantity" value="1" min="1" step="1" inputmode="numeric" pattern="[0-9]*">
+        </div>
+        <div style="display:flex; align-items:flex-end;">
+          <button class="btn-primary" id="add-shopping-btn" style="margin-top:12px;">＋ リストに追加</button>
+        </div>
+      </div>
+      <div id="shopping-message"></div>
+    </div>
+    <div id="shopping-list"></div>
+
     <h2>登録済みの一覧</h2>
     <div id="item-list"></div>
   </div>
@@ -328,6 +378,8 @@
   const reviewMessageBox = document.getElementById("review-message");
   const userEmailLabel = document.getElementById("user-email");
   const itemListEl = document.getElementById("item-list");
+  const shoppingMessageBox = document.getElementById("shopping-message");
+  const shoppingListEl = document.getElementById("shopping-list");
 
   function showMessage(el, text, isError) {
     el.textContent = text;
@@ -342,6 +394,7 @@
       loggedInArea.classList.remove("hidden");
       userEmailLabel.textContent = session.user.email;
       loadItems();
+      loadShoppingList();
     } else {
       authCard.classList.remove("hidden");
       loggedInArea.classList.add("hidden");
@@ -644,16 +697,23 @@
       return;
     }
 
-    const { error } = await supabaseClient.from("items").insert(rows);
+    const { data: insertedRows, error } = await supabaseClient.from("items").insert(rows).select();
     if (error) {
       showMessage(reviewMessageBox, "登録エラー: " + error.message, true);
       return;
+    }
+
+    if (insertedRows) {
+      for (const row of insertedRows) {
+        await syncShoppingListForItem(row.id);
+      }
     }
 
     document.getElementById("review-section").classList.add("hidden");
     document.getElementById("review-list").innerHTML = "";
     showMessage(addMessageBox, rows.length + "件登録しました", false);
     loadItems();
+    loadShoppingList();
   });
 
   // ---------- 食材・日用品まわり ----------
@@ -742,9 +802,9 @@
       return;
     }
 
-    const { error } = await supabaseClient.from("items").insert({
+    const { data: inserted, error } = await supabaseClient.from("items").insert({
       name, category, unit, quantity, expiry_date: expiry, barcode: currentBarcodeValue
-    });
+    }).select().single();
 
     if (error) {
       showMessage(addMessageBox, "登録エラー: " + error.message, true);
@@ -756,6 +816,7 @@
     document.getElementById("item-quantity").value = "1";
     document.getElementById("item-expiry").value = "";
     currentBarcodeValue = null;
+    if (inserted) await syncShoppingListForItem(inserted.id);
     loadItems();
   });
 
@@ -765,13 +826,141 @@
       .from("items")
       .update({ quantity: newQty, updated_at: new Date().toISOString() })
       .eq("id", id);
-    if (!error) loadItems();
+    if (!error) {
+      await syncShoppingListForItem(id);
+      loadItems();
+    }
   };
 
   window.deleteItem = async function(id) {
     if (!confirm("この項目を削除しますか?")) return;
     const { error } = await supabaseClient.from("items").delete().eq("id", id);
-    if (!error) loadItems();
+    if (!error) {
+      loadItems();
+      loadShoppingList(); // 紐づく買い物リストの項目もitem削除でcascade削除されるため再読み込み
+    }
+  };
+
+  // ---------- 買い物リストまわり ----------
+
+  // 在庫の数量としきい値を見て、買い物リストへの追加/削除を自動で行う
+  async function syncShoppingListForItem(itemId) {
+    const { data: item, error: itemError } = await supabaseClient
+      .from("items")
+      .select("id, name, quantity, low_stock_threshold")
+      .eq("id", itemId)
+      .single();
+    if (itemError || !item) return;
+
+    const { data: existing } = await supabaseClient
+      .from("shopping_list")
+      .select("id")
+      .eq("item_id", itemId)
+      .eq("is_purchased", false)
+      .maybeSingle();
+
+    if (item.quantity <= item.low_stock_threshold) {
+      // 少なめ・在庫切れ → リストになければ追加
+      if (!existing) {
+        await supabaseClient.from("shopping_list").insert({
+          item_id: item.id,
+          name: item.name,
+          quantity_needed: 1
+        });
+      }
+    } else {
+      // 在庫が回復した → リストにあれば自動で削除
+      if (existing) {
+        await supabaseClient.from("shopping_list").delete().eq("id", existing.id);
+      }
+    }
+  }
+
+  async function loadShoppingList() {
+    const { data, error } = await supabaseClient
+      .from("shopping_list")
+      .select("*")
+      .eq("is_purchased", false)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      shoppingListEl.innerHTML = '<div class="empty-note">読み込みエラー: ' + error.message + '</div>';
+      return;
+    }
+    renderShoppingList(data);
+  }
+
+  function renderShoppingList(rows) {
+    if (!rows || rows.length === 0) {
+      shoppingListEl.innerHTML = '<div class="empty-note">買い物リストは空です。在庫が少なくなると自動で追加されます。</div>';
+      return;
+    }
+
+    shoppingListEl.innerHTML = rows.map(row => `
+      <div class="shopping-card ${row.item_id ? "" : "manual"}">
+        <button class="check-btn" onclick="markPurchased('${row.id}', ${row.item_id ? `'${row.item_id}'` : null}, ${row.quantity_needed})">✓</button>
+        <div class="shopping-info">
+          <div class="shopping-name">${escapeHtml(row.name)}</div>
+          <div class="shopping-meta">
+            数量: ${row.quantity_needed} ${row.item_id ? "・在庫連動" : "・自由入力"}
+          </div>
+        </div>
+        <button class="del-btn" onclick="removeShoppingItem('${row.id}')">✕</button>
+      </div>
+    `).join("");
+  }
+
+  document.getElementById("add-shopping-btn").addEventListener("click", async () => {
+    const name = document.getElementById("shopping-name").value.trim();
+    const quantity = parseFloat(document.getElementById("shopping-quantity").value) || 1;
+
+    if (!name) {
+      showMessage(shoppingMessageBox, "商品名を入力してください", true);
+      return;
+    }
+
+    const { error } = await supabaseClient.from("shopping_list").insert({
+      name, quantity_needed: quantity, item_id: null
+    });
+
+    if (error) {
+      showMessage(shoppingMessageBox, "追加エラー: " + error.message, true);
+      return;
+    }
+
+    showMessage(shoppingMessageBox, "追加しました", false);
+    document.getElementById("shopping-name").value = "";
+    document.getElementById("shopping-quantity").value = "1";
+    loadShoppingList();
+  });
+
+  // 「購入済み」にする: リストから消し、在庫と連動している場合は在庫数量を増やす
+  window.markPurchased = async function(shoppingId, itemId, quantityNeeded) {
+    const { error } = await supabaseClient.from("shopping_list").delete().eq("id", shoppingId);
+    if (error) return;
+
+    if (itemId) {
+      const { data: item } = await supabaseClient
+        .from("items")
+        .select("quantity")
+        .eq("id", itemId)
+        .single();
+      if (item) {
+        await supabaseClient
+          .from("items")
+          .update({ quantity: item.quantity + quantityNeeded, updated_at: new Date().toISOString() })
+          .eq("id", itemId);
+      }
+    }
+
+    loadShoppingList();
+    loadItems();
+  };
+
+  window.removeShoppingItem = async function(id) {
+    if (!confirm("このリストの項目を削除しますか?")) return;
+    const { error } = await supabaseClient.from("shopping_list").delete().eq("id", id);
+    if (!error) loadShoppingList();
   };
 </script>
 
