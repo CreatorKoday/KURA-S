@@ -67,6 +67,8 @@
   .row2 { display: flex; gap: 10px; }
   .row2 > div { flex: 1; min-width: 0; }
   input[type="date"] { min-width: 0; padding-right: 6px; }
+  /* iOS Safariで日付欄の文字が中央に大きく表示されてしまうのを防ぐ */
+  input[type="date"]::-webkit-date-and-time-value { text-align: left; min-height: 1.2em; }
   button {
     border: none;
     border-radius: 10px;
@@ -239,14 +241,14 @@
             <input type="number" id="item-quantity" value="1" min="0" step="1" inputmode="numeric" pattern="[0-9]*">
           </div>
           <div>
-            <label for="item-threshold">最低数量</label>
-            <input type="number" id="item-threshold" value="1" min="0" step="1" inputmode="numeric" pattern="[0-9]*">
+            <label for="item-expiry">消費・賞味期限(任意)</label>
+            <input type="date" id="item-expiry">
           </div>
         </div>
-        <p class="scan-hint" style="text-align:left;">最低数量以下になると自動で買い物リストに追加されます</p>
 
-        <label for="item-expiry">消費・賞味期限(任意)</label>
-        <input type="date" id="item-expiry">
+        <label for="item-threshold">最低数量</label>
+        <input type="number" id="item-threshold" value="1" min="0" step="1" inputmode="numeric" pattern="[0-9]*">
+        <p class="scan-hint" style="text-align:left;">最低数量以下になると自動で買い物リストに追加されます</p>
 
         <button class="btn-primary" id="add-item-btn">＋ 登録する</button>
         <div id="add-message"></div>
@@ -671,13 +673,13 @@
             <input type="number" class="review-quantity" min="0" step="1" inputmode="numeric" pattern="[0-9]*" value="${item.quantity || 1}">
           </div>
           <div>
-            <label>最低数量</label>
-            <input type="number" class="review-threshold" min="0" step="1" inputmode="numeric" pattern="[0-9]*" value="1">
+            <label>消費・賞味期限(任意)</label>
+            <input type="date" class="review-expiry">
           </div>
         </div>
 
-        <label>消費・賞味期限(任意)</label>
-        <input type="date" class="review-expiry">
+        <label>最低数量</label>
+        <input type="number" class="review-threshold" min="0" step="1" inputmode="numeric" pattern="[0-9]*" value="1">
       </div>
     `).join("");
 
