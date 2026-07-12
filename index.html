@@ -283,7 +283,7 @@
         <div class="row2">
           <div>
             <label for="item-quantity">数量</label>
-            <input type="number" id="item-quantity" value="1" min="0" step="1" inputmode="numeric" pattern="[0-9]*">
+            <select id="item-quantity"></select>
           </div>
           <div>
             <label for="item-expiry">消費・賞味期限(任意)</label>
@@ -313,7 +313,7 @@
         <div class="row2">
           <div>
             <label for="shopping-quantity">数量</label>
-            <input type="number" id="shopping-quantity" value="1" min="1" step="1" inputmode="numeric" pattern="[0-9]*">
+            <select id="shopping-quantity"></select>
           </div>
           <div style="display:flex; align-items:flex-end;">
             <button class="btn-primary" id="add-shopping-btn" style="margin-top:12px;">＋ リストに追加</button>
@@ -388,6 +388,30 @@
     div.textContent = str ?? "";
     return div.innerHTML;
   }
+
+  // 数量選択用のプルダウンを組み立てる(AIが検出した数量が範囲外でもその値を含める)
+  function buildQuantityOptionsHtml(selectedValue, max) {
+    max = max || 30;
+    const selectedNum = Number(selectedValue) || 0;
+    const effectiveMax = Math.max(max, selectedNum);
+    let opts = "";
+    for (let i = 0; i <= effectiveMax; i++) {
+      opts += `<option value="${i}" ${i === selectedNum ? "selected" : ""}>${i}</option>`;
+    }
+    return opts;
+  }
+  function fillQuantitySelect(selectEl, min, max, selected) {
+    selectEl.innerHTML = "";
+    for (let i = min; i <= max; i++) {
+      const opt = document.createElement("option");
+      opt.value = i;
+      opt.textContent = i;
+      if (i === selected) opt.selected = true;
+      selectEl.appendChild(opt);
+    }
+  }
+  fillQuantitySelect(document.getElementById("item-quantity"), 0, 30, 1);
+  fillQuantitySelect(document.getElementById("shopping-quantity"), 1, 30, 1);
 
   function switchView(view) {
     document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
@@ -731,7 +755,7 @@
         <div class="row2">
           <div>
             <label>数量</label>
-            <input type="number" class="review-quantity" min="0" step="1" inputmode="numeric" pattern="[0-9]*" value="${item.quantity || 1}">
+            <select class="review-quantity">${buildQuantityOptionsHtml(item.quantity || 1)}</select>
           </div>
           <div>
             <label>消費・賞味期限(任意)</label>
@@ -1151,13 +1175,14 @@
   }
 
   document.getElementById("cal-month-label").addEventListener("click", () => {
-    const nowYear = calendarViewDate.getFullYear();
+    const realCurrentYear = new Date().getFullYear();
+    const viewYear = calendarViewDate.getFullYear();
     yearSelect.innerHTML = "";
-    for (let y = nowYear - 5; y <= nowYear + 5; y++) {
+    for (let y = realCurrentYear; y <= realCurrentYear + 10; y++) {
       const opt = document.createElement("option");
       opt.value = y;
       opt.textContent = y + "年";
-      if (y === nowYear) opt.selected = true;
+      if (y === viewYear) opt.selected = true;
       yearSelect.appendChild(opt);
     }
     monthSelect.value = calendarViewDate.getMonth() + 1;
