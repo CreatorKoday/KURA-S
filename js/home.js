@@ -1,10 +1,11 @@
 // ==========================================================
 // ホーム画面のダッシュボード化
 //
-// 「食材を登録」「食材を消費」ともに、ページ遷移・モーダルを使わず、
-// セグメントタブ(バーコード/AI/手動)で切り替える同じ構成のパネル。
-// パネルを開くとダッシュボードの2つのボタンは隠れ、閉じると再表示される
-// (パネルが上に詰まり、手動登録・消費でもスクロールしにくくなる)。
+// 「食材を登録」「食材を消費」は1つのパネルにまとまっており、
+// パネル上部の「登録 / 消費」ボタンで、パネルを閉じずにその場で
+// モードを切り替えられる。各モードの中はさらにセグメントタブ
+// (バーコード/AI/手動)で切り替える。
+// パネルを開くとダッシュボードの2つのボタンは隠れ、閉じると再表示される。
 //
 // 【重要】このファイルは見た目・表示切り替えの制御のみを行う。
 // scan-btn / photo-btn / add-item-btn / consume-scan-btn / consume-photo-btn /
@@ -17,8 +18,11 @@ function show(id) { document.getElementById(id).classList.remove("hidden"); }
 function hide(id) { document.getElementById(id).classList.add("hidden"); }
 
 const dashboardGrid = document.querySelector(".dashboard-grid");
-const registerSection = document.getElementById("register-accordion-section");
-const consumeSection = document.getElementById("consume-accordion-section");
+const actionPanel = document.getElementById("action-panel-section");
+const actionPanelTitle = document.getElementById("action-panel-title");
+
+const MODE_TITLES = { register: "食材を登録", consume: "食材を消費" };
+const MODE_DEFAULT_TAB = { register: "barcode", consume: "consume-barcode" };
 
 function selectTab(target) {
   document.querySelectorAll(".segmented-tab").forEach(tab => {
@@ -29,72 +33,63 @@ function selectTab(target) {
   });
 }
 
+function selectMode(mode) {
+  document.querySelectorAll(".mode-switch-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.modeTarget === mode);
+  });
+  document.querySelectorAll(".mode-panel").forEach(panel => {
+    panel.classList.toggle("active", panel.id === "mode-panel-" + mode);
+  });
+  actionPanelTitle.textContent = MODE_TITLES[mode];
+  selectTab(MODE_DEFAULT_TAB[mode]);
+}
+
+document.querySelectorAll(".mode-switch-btn").forEach(btn => {
+  btn.addEventListener("click", () => selectMode(btn.dataset.modeTarget));
+});
 document.querySelectorAll(".segmented-tab").forEach(tab => {
   tab.addEventListener("click", () => selectTab(tab.dataset.tabTarget));
 });
 
-// ---------- 食材を登録 ----------
+// ---------- パネルの開閉 ----------
 
-document.getElementById("open-register-modal-btn").addEventListener("click", () => {
+function openActionPanel(mode) {
   dashboardGrid.classList.add("hidden");
-  hide("consume-accordion-section");
-  show("register-accordion-section");
-  selectTab("barcode");
-  registerSection.scrollIntoView({ behavior: "smooth", block: "start" });
-});
-
-document.getElementById("close-register-accordion-btn").addEventListener("click", closeRegisterSection);
-
-function closeRegisterSection() {
-  hide("register-accordion-section");
-  dashboardGrid.classList.remove("hidden");
-  selectTab("barcode");
+  show("action-panel-section");
+  selectMode(mode);
+  actionPanel.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-// 手動登録が成功したらパネルを閉じる
-const manualAddMessageEl = document.getElementById("manual-add-message");
-new MutationObserver(() => {
-  if (manualAddMessageEl.classList.contains("msg-ok") && manualAddMessageEl.textContent) {
-    setTimeout(closeRegisterSection, 700);
-  }
-}).observe(manualAddMessageEl, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ["class"] });
+function closeActionPanel() {
+  hide("action-panel-section");
+  dashboardGrid.classList.remove("hidden");
+  selectMode("register");
+}
 
-// AIでの一括登録が完了(またはキャンセル)されたらパネルを閉じる
+document.getElementById("open-register-modal-btn").addEventListener("click", () => openActionPanel("register"));
+document.getElementById("open-consume-modal-btn").addEventListener("click", () => openActionPanel("consume"));
+document.getElementById("close-action-panel-btn").addEventListener("click", closeActionPanel);
+
+// ---------- 完了したら自動でパネルを閉じる ----------
+
+function watchSuccessMessage(elId, onSuccess) {
+  const el = document.getElementById(elId);
+  new MutationObserver(() => {
+    if (el.classList.contains("msg-ok") && el.textContent) {
+      setTimeout(onSuccess, 700);
+    }
+  }).observe(el, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ["class"] });
+}
+
+// 手動登録が成功したら閉じる
+watchSuccessMessage("manual-add-message", closeActionPanel);
+// 手動消費が成功したら閉じる
+watchSuccessMessage("manual-consume-message", closeActionPanel);
+// バーコード/AI経由の消費が確定されたら閉じる
+watchSuccessMessage("consume-message", closeActionPanel);
+
+// AIでの一括登録が完了(またはキャンセル)されたら閉じる
 const reviewSectionEl = document.getElementById("review-section");
 new MutationObserver(() => {
-  if (reviewSectionEl.classList.contains("hidden")) closeRegisterSection();
+  if (reviewSectionEl.classList.contains("hidden")) closeActionPanel();
 }).observe(reviewSectionEl, { attributes: true, attributeFilter: ["class"] });
-
-// ---------- 食材を消費 ----------
-
-document.getElementById("open-consume-modal-btn").addEventListener("click", () => {
-  dashboardGrid.classList.add("hidden");
-  hide("register-accordion-section");
-  show("consume-accordion-section");
-  selectTab("consume-barcode");
-  consumeSection.scrollIntoView({ behavior: "smooth", block: "start" });
-});
-
-document.getElementById("close-consume-accordion-btn").addEventListener("click", closeConsumeSection);
-
-function closeConsumeSection() {
-  hide("consume-accordion-section");
-  dashboardGrid.classList.remove("hidden");
-  selectTab("consume-barcode");
-}
-
-// 手動消費が成功したらパネルを閉じる
-const manualConsumeMessageEl = document.getElementById("manual-consume-message");
-new MutationObserver(() => {
-  if (manualConsumeMessageEl.classList.contains("msg-ok") && manualConsumeMessageEl.textContent) {
-    setTimeout(closeConsumeSection, 700);
-  }
-}).observe(manualConsumeMessageEl, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ["class"] });
-
-// バーコード/AI経由の消費が確定(confirm-consume-btn)されたらパネルを閉じる
-const consumeMessageEl = document.getElementById("consume-message");
-new MutationObserver(() => {
-  if (consumeMessageEl.classList.contains("msg-ok") && consumeMessageEl.textContent) {
-    setTimeout(closeConsumeSection, 700);
-  }
-}).observe(consumeMessageEl, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ["class"] });

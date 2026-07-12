@@ -590,3 +590,35 @@
   .tab-panel.active {
     display: block;
   }
+
+  /* --- 食材を登録/消費パネル: 上部のモード切り替え(登録⇔消費) --- */
+  .mode-switch {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .mode-switch-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 46px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 600;
+    transition: background .2s ease, color .2s ease, box-shadow .2s ease, border-color .2s ease;
+  }
+  .mode-switch-btn .lucide { width: 17px; height: 17px; }
+  .mode-switch-btn.active {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 4px 12px rgba(123,92,255,0.28);
+  }
+
+  .mode-panel { display: none; animation: fadeSlideIn .25s ease; }
+  .mode-panel.active { display: block; }
