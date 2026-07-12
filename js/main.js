@@ -21,6 +21,7 @@ import "./consume.js";
 
 import "./navigation.js";
 import "./auth.js";
+import "./home.js";
 
 import "./calendar.js";
 

@@ -388,3 +388,149 @@
   .calendar-footer { display: flex; gap: 8px; margin-top: 16px; }
   .calendar-footer button { margin-top: 0; flex: 1; height: 44px; }
   #calendar-grid.hidden, #yearmonth-picker.hidden { display: none; }
+
+  /* --- ホームダッシュボード(食材を登録 / 食材を消費) --- */
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 8px;
+  }
+  .dashboard-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 26px;
+    padding: 40px 16px;
+    height: auto;
+    box-shadow: 0 2px 6px rgba(25,17,66,0.04), 0 16px 32px rgba(25,17,66,0.06);
+  }
+  .dashboard-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 10px rgba(25,17,66,0.06), 0 20px 40px rgba(25,17,66,0.1);
+  }
+  .dashboard-icon {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: #fff;
+  }
+  .dashboard-icon .lucide { width: 26px; height: 26px; }
+  .dashboard-icon.consume {
+    background: linear-gradient(135deg, #F59E0B, #F97316);
+  }
+  .dashboard-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 19px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .dashboard-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.5;
+  }
+
+  /* --- 登録/消費の方法を選ぶモーダル(下から出るシート) --- */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15,10,30,0.48);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 950;
+    animation: fadeIn .2s ease;
+  }
+  .modal-overlay.hidden { display: none; }
+  .modal-sheet {
+    width: 100%;
+    max-width: 460px;
+    background: var(--card);
+    border-radius: 28px 28px 0 0;
+    padding: 8px 20px calc(28px + env(safe-area-inset-bottom));
+    box-shadow: 0 -20px 50px rgba(25,17,66,0.2);
+    animation: fadeSlideIn .25s ease;
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 4px 10px;
+  }
+  .modal-header h2 {
+    margin: 0;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .modal-close-btn {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: var(--bg);
+    color: var(--text-muted);
+    display: flex; align-items: center; justify-content: center;
+    padding: 0;
+  }
+  .modal-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 6px;
+  }
+  .modal-option {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 16px;
+    text-align: left;
+    height: auto;
+  }
+  .modal-option:hover {
+    border-color: var(--primary);
+    background: var(--accent-tint);
+  }
+  .modal-option-icon {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: #fff;
+  }
+  .modal-option-icon.consume {
+    background: linear-gradient(135deg, #F59E0B, #F97316);
+  }
+  .modal-option-icon .lucide { width: 20px; height: 20px; }
+  .modal-option-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .modal-option-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .modal-option-desc {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .modal-option-arrow {
+    width: 18px; height: 18px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
