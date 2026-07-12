@@ -2,12 +2,12 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>KURA:S ― 暮らしを、もっとスマートに。</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Poppins:wght@200;300;400&display=swap" rel="stylesheet">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -53,11 +53,12 @@
 
   .brand-header { text-align: center; margin-bottom: 28px; animation: fadeSlideIn .5s ease; }
   .brand-logo {
-    font-family: 'Cormorant Garamond', serif;
-    font-weight: 700;
-    font-size: 34px;
-    letter-spacing: 0.06em;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 300;
+    font-size: 32px;
+    letter-spacing: 0.28em;
     margin: 0;
+    padding-left: 0.28em; /* letter-spacingで右にずれる分を中央合わせで補正 */
     background: linear-gradient(135deg, var(--primary), var(--secondary));
     -webkit-background-clip: text;
     background-clip: text;
@@ -190,9 +191,16 @@
   }
 
   .nav-bar {
-    display: flex; gap: 4px; margin-bottom: 26px;
-    background: #fff; border: 1px solid var(--border); border-radius: 999px; padding: 5px;
-    box-shadow: 0 2px 8px rgba(25,17,66,0.04);
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    margin: 0 auto;
+    max-width: 460px;
+    display: flex; gap: 4px;
+    background: #fff; border: 1px solid var(--border); border-bottom: none;
+    border-radius: 20px 20px 0 0;
+    padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+    box-shadow: 0 -6px 20px rgba(25,17,66,0.08);
+    z-index: 900;
   }
   .nav-btn {
     flex: 1; height: 46px; padding: 0 4px;
@@ -205,6 +213,8 @@
     color: #fff;
     box-shadow: 0 4px 12px rgba(123,92,255,0.35);
   }
+
+  #logged-in-area { padding-bottom: 88px; }
 
   .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px; }
   .action-card {
@@ -344,8 +354,8 @@
   }
   .calendar-header button:hover { background: var(--accent-tint); border-color: var(--primary); }
   #cal-month-label {
-    font-family: 'Cormorant Garamond', serif;
-    font-weight: 600; font-size: 18px; letter-spacing: 0.02em; color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-weight: 700; font-size: 17px; letter-spacing: 0.01em; color: var(--text);
     cursor: pointer;
     text-decoration: underline;
     text-decoration-color: var(--primary);
