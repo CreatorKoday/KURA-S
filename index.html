@@ -2,7 +2,11 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="KURA:S">
+<meta name="theme-color" content="#7B5CFF">
 <title>KURA:S ― 暮らしを、もっとスマートに。</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -37,6 +41,13 @@
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
+  html, body {
+    height: 100%;
+    overflow: hidden; /* 画面全体としてはスクロールさせない */
+    overscroll-behavior: none;
+    touch-action: pan-y; /* ピンチズーム・横スワイプのズームを抑止 */
+  }
+
   body {
     margin: 0;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
@@ -44,14 +55,23 @@
     color: var(--text);
     -webkit-font-smoothing: antialiased;
   }
-  .wrap { max-width: 460px; margin: 0 auto; padding: 32px 18px 60px; min-height: 100vh; }
+  .wrap {
+    max-width: 460px;
+    margin: 0 auto;
+    padding: 18px 18px 60px;
+    height: 100%;
+    height: 100dvh;
+    overflow-y: auto;   /* 中身が画面に収まらない時だけ縦スクロール */
+    overflow-x: hidden; /* 横スクロールは常に禁止 */
+    -webkit-overflow-scrolling: touch;
+  }
 
   .lucide { width: 18px; height: 18px; stroke-width: 2; vertical-align: middle; }
 
   @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-  .brand-header { text-align: center; margin-bottom: 28px; animation: fadeSlideIn .5s ease; }
+  .brand-header { text-align: center; margin-bottom: 14px; animation: fadeSlideIn .5s ease; }
   .brand-logo {
     font-family: 'Poppins', sans-serif;
     font-weight: 300;
@@ -198,7 +218,7 @@
     display: flex; gap: 4px;
     background: #fff; border: 1px solid var(--border); border-bottom: none;
     border-radius: 20px 20px 0 0;
-    padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+    padding: 10px 10px calc(22px + env(safe-area-inset-bottom));
     box-shadow: 0 -6px 20px rgba(25,17,66,0.08);
     z-index: 900;
   }
@@ -214,7 +234,7 @@
     box-shadow: 0 4px 12px rgba(123,92,255,0.35);
   }
 
-  #logged-in-area { padding-bottom: 88px; }
+  #logged-in-area { padding-bottom: 100px; }
 
   .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px; }
   .action-card {
