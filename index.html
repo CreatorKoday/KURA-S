@@ -3,330 +3,396 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>わが家の在庫管理</title>
+<title>KURA:S ― 暮らしを、もっとスマートに。</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Jost:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 
 <style>
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
   :root {
-    --ink: #1c1a17;
-    --ink-soft: #2c2823;
-    --cream: #f4efe4;
-    --card: #fffdf9;
-    --gold: #a9824f;
-    --gold-deep: #8a6a3d;
-    --gold-tint: #efe3cc;
-    --forest: #3c5240;
-    --text: #2a2622;
-    --text-muted: #8c8172;
-    --danger: #9c3b32;
-    --border: rgba(28,26,23,0.12);
-    --border-soft: rgba(28,26,23,0.08);
+    --primary: #7B5CFF;
+    --secondary: #9F84FF;
+    --accent: #C9B5FF;
+    --accent-tint: #F1EDFF;
+    --bg: #F6F7FB;
+    --card: #FFFFFF;
+    --text: #191919;
+    --text-muted: #6B7280;
+    --border: #E8EAF0;
+    --success: #22C55E;
+    --warning: #F59E0B;
+    --danger: #EF4444;
   }
 
-  * { -webkit-tap-highlight-color: transparent; }
+  html { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
   body {
     margin: 0;
-    font-family: 'Jost', -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
-    background: var(--cream);
-    background-image:
-      radial-gradient(circle at 15% 0%, rgba(169,130,79,0.07), transparent 45%),
-      radial-gradient(circle at 100% 20%, rgba(60,82,64,0.05), transparent 40%);
-    background-attachment: fixed;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: var(--bg);
     color: var(--text);
-    letter-spacing: 0.01em;
+    -webkit-font-smoothing: antialiased;
   }
-  .wrap {
-    max-width: 460px;
-    margin: 0 auto;
-    padding: 28px 18px 60px;
-    min-height: 100vh;
-  }
-  h1 {
+  .wrap { max-width: 460px; margin: 0 auto; padding: 32px 18px 60px; min-height: 100vh; }
+
+  .lucide { width: 18px; height: 18px; stroke-width: 2; vertical-align: middle; }
+
+  @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .brand-header { text-align: center; margin-bottom: 28px; animation: fadeSlideIn .5s ease; }
+  .brand-logo {
     font-family: 'Cormorant Garamond', serif;
-    font-weight: 600;
-    font-size: 26px;
-    text-align: center;
-    letter-spacing: 0.08em;
-    margin: 4px 0 6px;
-    color: var(--ink);
+    font-weight: 700;
+    font-size: 34px;
+    letter-spacing: 0.06em;
+    margin: 0;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
-  h1::after {
-    content: "";
-    display: block;
-    width: 56px;
-    height: 1px;
-    background: var(--gold);
-    margin: 14px auto 20px;
+  .brand-tagline {
+    font-size: 12px;
+    color: var(--text-muted);
+    letter-spacing: 0.12em;
+    margin: 6px 0 0;
   }
+
   h2 {
     font-family: 'Cormorant Garamond', serif;
     font-weight: 600;
-    font-size: 20px;
-    color: var(--ink);
-    letter-spacing: 0.04em;
-    margin: 28px 4px 12px;
+    font-size: 21px;
+    color: var(--text);
+    margin: 30px 4px 14px;
   }
   h3.group-heading {
-    font-family: 'Jost', sans-serif;
     font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.16em;
+    font-weight: 700;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--gold-deep);
-    margin: 24px 2px 8px;
+    color: var(--primary);
+    margin: 26px 2px 10px;
     padding-bottom: 8px;
     border-bottom: 1px solid var(--border);
   }
   h4.group-subheading {
     font-size: 11px;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.06em;
     color: var(--text-muted);
-    margin: 14px 4px 6px;
+    margin: 16px 4px 8px;
   }
+
   .card {
     background: var(--card);
-    border: 1px solid var(--border-soft);
-    border-radius: 4px;
+    border: 1px solid var(--border);
+    border-radius: 22px;
     padding: 24px 20px;
-    box-shadow: 0 1px 2px rgba(28,26,23,0.04), 0 8px 24px rgba(28,26,23,0.05);
+    box-shadow: 0 2px 6px rgba(25,17,66,0.04), 0 12px 28px rgba(25,17,66,0.05);
+    animation: fadeSlideIn .35s ease;
   }
+
   label {
     display: block;
     font-size: 11px;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--text-muted);
     margin: 16px 0 6px;
+    font-weight: 600;
   }
   input, select {
     width: 100%;
-    padding: 12px 13px;
+    height: 48px;
+    padding: 0 14px;
     border: 1px solid var(--border);
-    border-radius: 3px;
-    font-family: 'Jost', sans-serif;
-    font-size: 16px;
+    border-radius: 16px;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
     background: var(--card);
     color: var(--text);
+    transition: border-color .2s ease, box-shadow .2s ease;
   }
   input:focus, select:focus {
     outline: none;
-    border-color: var(--gold);
-    box-shadow: 0 0 0 3px rgba(169,130,79,0.15);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(123,92,255,0.14);
   }
   .row2 { display: flex; gap: 10px; }
   .row2 > div { flex: 1; min-width: 0; }
   input[type="date"] { min-width: 0; padding-right: 6px; }
   input[type="date"]::-webkit-date-and-time-value { text-align: left; min-height: 1.2em; }
 
+  .input-icon-wrap { position: relative; }
+  .input-icon-wrap .lucide {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    color: var(--text-muted); pointer-events: none;
+  }
+  .input-icon-wrap input { padding-left: 42px; }
+
   button {
     border: none;
-    border-radius: 3px;
-    font-family: 'Jost', sans-serif;
+    border-radius: 16px;
+    font-family: 'Inter', sans-serif;
     font-size: 14px;
-    font-weight: 500;
-    letter-spacing: 0.04em;
+    font-weight: 600;
     cursor: pointer;
-    transition: opacity 0.15s ease, transform 0.15s ease;
+    transition: transform .15s ease, box-shadow .2s ease, background .2s ease, border-color .2s ease, color .2s ease;
   }
-  button:active { transform: scale(0.98); }
+  button:active { transform: scale(0.96); }
 
   .btn-primary {
-    width: 100%; padding: 14px;
-    background: var(--ink); color: var(--gold-tint);
-    margin-top: 18px; font-size: 14px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    width: 100%; height: 50px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: #fff;
+    margin-top: 18px; font-size: 15px;
+    box-shadow: 0 6px 16px rgba(123,92,255,0.32);
   }
-  .btn-primary:hover { background: var(--ink-soft); }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(123,92,255,0.4); }
   .btn-secondary {
-    width: 100%; padding: 13px;
-    background: transparent; color: var(--ink);
+    width: 100%; height: 48px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    background: #fff; color: var(--text);
     border: 1px solid var(--border);
-    margin-top: 12px; font-size: 13px;
-    letter-spacing: 0.08em;
+    margin-top: 12px; font-size: 14px;
   }
-  .btn-secondary:hover { border-color: var(--gold); color: var(--gold-deep); }
+  .btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
   .btn-logout {
-    width: 100%; padding: 13px;
+    width: 100%; height: 44px;
     background: transparent; color: var(--danger);
     margin-top: 16px; font-size: 13px;
   }
   #message { text-align: center; font-size: 13px; margin-top: 14px; min-height: 18px; }
   .msg-error { color: var(--danger); }
-  .msg-ok { color: var(--forest); }
+  .msg-ok { color: var(--success); }
   .hidden { display: none; }
+
   .top-bar {
     display: flex; justify-content: space-between; align-items: center;
     font-size: 12px; color: var(--text-muted); margin-bottom: 18px;
-    letter-spacing: 0.02em;
   }
-  .top-bar strong { color: var(--ink); font-weight: 500; }
+  .top-bar strong { color: var(--text); font-weight: 600; }
   .top-bar button {
-    background: none; color: var(--danger); font-size: 11px; font-weight: 500;
-    letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 8px;
+    background: none; color: var(--danger); font-size: 11px; font-weight: 600;
+    letter-spacing: 0.04em; padding: 4px 8px; height: auto;
   }
 
   .nav-bar {
-    display: flex; gap: 0; margin-bottom: 24px;
-    background: var(--ink); border-radius: 4px; padding: 4px;
+    display: flex; gap: 4px; margin-bottom: 26px;
+    background: #fff; border: 1px solid var(--border); border-radius: 999px; padding: 5px;
+    box-shadow: 0 2px 8px rgba(25,17,66,0.04);
   }
   .nav-btn {
-    flex: 1; padding: 12px 4px; background: transparent; color: rgba(244,239,228,0.55);
-    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; border-radius: 3px;
+    flex: 1; height: 46px; padding: 0 4px;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    background: transparent; color: var(--text-muted);
+    font-size: 11px; letter-spacing: 0.02em; border-radius: 999px;
   }
-  .nav-btn.active { background: rgba(244,239,228,0.08); color: var(--gold-tint); box-shadow: inset 0 -2px 0 var(--gold); }
+  .nav-btn.active {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(123,92,255,0.35);
+  }
 
-  #scanner-wrap { margin-top: 12px; }
-  #reader { width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid var(--border); }
-  .scan-hint { font-size: 11px; color: var(--text-muted); text-align: center; margin: 8px 0 0; }
+  .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px; }
+  .action-card {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+    padding: 22px 10px; background: #fff; border: 1px solid var(--border); border-radius: 20px;
+    color: var(--text); font-size: 13px; font-weight: 600; height: auto;
+  }
+  .action-card .lucide { width: 26px; height: 26px; color: var(--primary); }
+  .action-card:hover { transform: translateY(-3px); box-shadow: 0 10px 22px rgba(123,92,255,0.16); border-color: var(--primary); }
 
+  #scanner-wrap { margin-top: 14px; }
+  #reader { width: 100%; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); }
+  .scan-hint { font-size: 11px; color: var(--text-muted); text-align: center; margin: 10px 0 0; }
+
+  /* --- 在庫カード --- */
   .item-card {
     background: var(--card);
-    border: 1px solid var(--border-soft);
-    border-radius: 3px;
-    padding: 16px 18px;
-    margin-bottom: 10px;
-    box-shadow: 0 1px 2px rgba(28,26,23,0.03);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    border-left: 3px solid var(--gold-tint);
-    flex-wrap: wrap;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 18px 20px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 6px rgba(25,17,66,0.03);
+    border-left: 4px solid var(--primary);
+    animation: fadeSlideIn .3s ease;
   }
   .item-card.expired { border-left-color: var(--danger); }
-  .item-card.soon { border-left-color: var(--gold); }
-  .item-info { flex: 1; min-width: 140px; }
-  .item-name { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 600; color: var(--ink); }
-  .item-meta {
-    font-size: 11px; color: var(--text-muted); margin-top: 4px;
-    display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
-    letter-spacing: 0.02em;
-  }
+  .item-card.soon { border-left-color: var(--warning); }
+  .item-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+  .item-name { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 600; color: var(--text); }
+  .item-badges { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
   .tag {
-    display: inline-block; background: var(--gold-tint); color: var(--gold-deep);
-    border-radius: 2px; padding: 2px 7px; font-size: 10px;
-    letter-spacing: 0.08em; text-transform: uppercase;
+    display: inline-block; background: var(--accent-tint); color: var(--primary);
+    border-radius: 999px; padding: 4px 10px; font-size: 10px;
+    letter-spacing: 0.04em; white-space: nowrap; font-weight: 600;
   }
-  .expiry-label.expired { color: var(--danger); font-weight: 600; }
-  .expiry-label.soon { color: var(--gold-deep); font-weight: 600; }
-  .item-threshold {
-    font-size: 11px; color: var(--text-muted); margin-top: 8px;
-    display: flex; align-items: center; gap: 6px;
-    letter-spacing: 0.04em;
+  .tag.warning { background: #FEF3C7; color: #B45309; }
+
+  .item-stats {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    padding: 14px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+    margin-bottom: 14px;
   }
-  .item-threshold input { width: 56px; padding: 4px 6px; font-size: 13px; }
-  .qty-control { display: flex; align-items: center; gap: 8px; }
+  .stat { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .stat-label { font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
+  .stat-value { font-size: 14px; font-weight: 700; color: var(--text); }
+  .stat-value.text-danger { color: var(--danger); }
+  .stat-value.text-warning { color: var(--warning); }
+  .threshold-input {
+    width: 52px; height: 28px; padding: 0 6px; font-size: 13px; border-radius: 8px;
+  }
+
+  .item-card-footer { display: flex; align-items: center; justify-content: space-between; }
+  .qty-control { display: flex; align-items: center; gap: 10px; }
   .qty-btn {
-    width: 30px; height: 30px; border-radius: 50%;
-    background: transparent; border: 1px solid var(--border); color: var(--ink);
-    font-size: 16px; line-height: 1; padding: 0;
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--bg); border: 1px solid var(--border); color: var(--primary);
+    display: flex; align-items: center; justify-content: center; padding: 0;
   }
-  .qty-btn:hover { border-color: var(--gold); color: var(--gold-deep); }
-  .qty-num { min-width: 34px; text-align: center; font-size: 15px; font-weight: 500; color: var(--ink); }
-  .del-btn { background: none; color: var(--text-muted); font-size: 16px; padding: 2px 6px; }
+  .qty-btn:hover { background: var(--accent-tint); border-color: var(--primary); }
+  .qty-btn .lucide { width: 15px; height: 15px; }
+  .qty-num { min-width: 30px; text-align: center; font-size: 15px; font-weight: 700; color: var(--text); }
+  .del-btn {
+    display: flex; align-items: center; gap: 4px;
+    background: none; color: var(--text-muted); font-size: 12px; font-weight: 600;
+    padding: 4px 6px; height: auto;
+  }
+  .del-btn .lucide { width: 15px; height: 15px; }
   .del-btn:hover { color: var(--danger); }
   .empty-note {
-    text-align: center; color: var(--text-muted); font-size: 13px; padding: 30px 20px;
-    border: 1px dashed var(--border); border-radius: 4px;
+    text-align: center; color: var(--text-muted); font-size: 13px; padding: 34px 20px;
+    border: 1px dashed var(--border); border-radius: 20px; background: #fff;
   }
 
+  /* --- 写真AI判定レビューカード --- */
   .review-card {
-    background: var(--card); border: 1px solid var(--border); border-radius: 3px;
-    padding: 16px 18px; margin-bottom: 12px; position: relative;
+    background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+    padding: 18px 20px; margin-bottom: 12px; position: relative;
+    animation: fadeSlideIn .3s ease;
   }
-  .review-card .del-btn { position: absolute; top: 8px; right: 8px; }
-  .review-note { font-size: 11px; color: var(--text-muted); margin: 6px 0 0; }
+  .review-card .del-btn {
+    position: absolute; top: 10px; right: 10px;
+    width: 30px; height: 30px; border-radius: 50%; background: var(--bg); padding: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .review-note { font-size: 12px; color: var(--text-muted); margin: 6px 0 0; }
+  .review-badge {
+    display: inline-block; background: var(--accent-tint); color: var(--primary);
+    border-radius: 999px; padding: 3px 10px; font-size: 10px; font-weight: 700;
+    letter-spacing: 0.06em; margin-bottom: 8px;
+  }
 
+  /* --- 買い物リスト --- */
   .shopping-card {
-    background: var(--card); border: 1px solid var(--border-soft); border-radius: 3px;
-    padding: 14px 18px; margin-bottom: 8px;
-    box-shadow: 0 1px 2px rgba(28,26,23,0.03);
-    display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    border-left: 3px solid var(--forest);
+    background: var(--card); border: 1px solid var(--border); border-radius: 18px;
+    padding: 14px 18px; margin-bottom: 10px;
+    box-shadow: 0 2px 6px rgba(25,17,66,0.03);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    border-left: 4px solid var(--success);
+    animation: fadeSlideIn .3s ease;
   }
   .shopping-card.manual { border-left-color: var(--border); }
   .shopping-info { flex: 1; min-width: 0; }
-  .shopping-name { font-family: 'Cormorant Garamond', serif; font-size: 17px; font-weight: 600; color: var(--ink); }
-  .shopping-meta { font-size: 11px; color: var(--text-muted); margin-top: 3px; letter-spacing: 0.02em; }
+  .shopping-name { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 600; color: var(--text); }
+  .shopping-meta { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
   .check-btn {
-    width: 32px; height: 32px; border-radius: 50%;
-    background: var(--forest); border: none; color: #fff; font-size: 15px; line-height: 1; padding: 0; flex-shrink: 0;
+    width: 36px; height: 36px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    border: none; color: #fff; padding: 0; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 10px rgba(123,92,255,0.3);
   }
+  .check-btn:hover { transform: translateY(-1px) scale(1.04); }
+  .check-btn .lucide { width: 17px; height: 17px; }
 
-  .filter-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .filter-row { display: flex; gap: 8px; margin-bottom: 12px; }
 
   /* --- 自作カレンダー(日付選択) --- */
   .date-display { cursor: pointer; background: var(--card); }
   #calendar-overlay {
-    position: fixed; inset: 0; background: rgba(28,26,23,0.55);
+    position: fixed; inset: 0; background: rgba(25,17,40,0.45);
     display: flex; align-items: center; justify-content: center;
     z-index: 1000; padding: 20px;
+    animation: fadeIn .2s ease;
   }
   #calendar-overlay.hidden { display: none; }
   #calendar-modal {
-    background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 20px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 24px; padding: 22px;
     width: 100%; max-width: 340px;
+    box-shadow: 0 20px 50px rgba(25,17,66,0.2);
+    animation: fadeSlideIn .25s ease;
   }
-  .calendar-header {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 12px;
-  }
+  .calendar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
   .calendar-header button {
-    background: transparent; border: 1px solid var(--border); color: var(--ink); width: 32px; height: 32px;
-    border-radius: 50%; font-size: 16px; padding: 0; margin-top: 0;
+    background: var(--bg); border: 1px solid var(--border); color: var(--primary); width: 34px; height: 34px;
+    border-radius: 50%; padding: 0; margin-top: 0;
+    display: flex; align-items: center; justify-content: center;
   }
+  .calendar-header button:hover { background: var(--accent-tint); border-color: var(--primary); }
   #cal-month-label {
     font-family: 'Cormorant Garamond', serif;
-    font-weight: 600; font-size: 17px; letter-spacing: 0.04em; color: var(--ink);
+    font-weight: 600; font-size: 18px; letter-spacing: 0.02em; color: var(--text);
     cursor: pointer;
     text-decoration: underline;
-    text-decoration-color: var(--gold);
+    text-decoration-color: var(--primary);
     text-underline-offset: 4px;
   }
   .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-  .calendar-grid .cal-dow { text-align: center; font-size: 10px; letter-spacing: 0.06em; color: var(--text-muted); padding: 4px 0; }
+  .calendar-grid .cal-dow { text-align: center; font-size: 10px; letter-spacing: 0.04em; color: var(--text-muted); padding: 4px 0; }
   .calendar-grid .cal-day {
-    text-align: center; padding: 8px 0; border-radius: 3px; font-size: 13px;
+    text-align: center; padding: 9px 0; border-radius: 10px; font-size: 13px;
     cursor: pointer; background: transparent; color: var(--text);
+    transition: background .15s ease;
   }
   .calendar-grid .cal-day.empty { background: none; cursor: default; }
-  .calendar-grid .cal-day.selected { background: var(--ink); color: var(--gold-tint); font-weight: 600; }
-  .calendar-grid .cal-day.today {
-    background: var(--gold-tint); color: var(--gold-deep); font-weight: 700;
-    border: 1px solid var(--gold);
-  }
-  .calendar-grid .cal-day.today.selected { color: var(--gold-tint); background: var(--ink); border-color: var(--ink); }
-  .yearmonth-picker { display: flex; gap: 8px; margin-bottom: 10px; }
-  .yearmonth-picker select { padding: 10px; }
-  .calendar-footer { display: flex; gap: 8px; margin-top: 14px; }
-  .calendar-footer button { margin-top: 0; flex: 1; }
+  .calendar-grid .cal-day:not(.empty):hover { background: var(--accent-tint); }
+  .calendar-grid .cal-day.selected { background: var(--primary); color: #fff; font-weight: 700; }
+  .calendar-grid .cal-day.today { background: var(--accent-tint); color: var(--primary); font-weight: 700; border: 1px solid var(--primary); }
+  .calendar-grid .cal-day.today.selected { color: #fff; background: var(--primary); border-color: var(--primary); }
+  .yearmonth-picker { display: flex; gap: 8px; margin-bottom: 12px; }
+  .yearmonth-picker select { height: 44px; }
+  .calendar-footer { display: flex; gap: 8px; margin-top: 16px; }
+  .calendar-footer button { margin-top: 0; flex: 1; height: 44px; }
   #calendar-grid.hidden, #yearmonth-picker.hidden { display: none; }
 </style>
 </head>
 <body>
 
 <div class="wrap">
-  <h1>🏠 わが家の在庫管理</h1>
+  <div class="brand-header">
+    <p class="brand-logo">KURA:S</p>
+    <p class="brand-tagline">暮らしを、もっとスマートに。</p>
+  </div>
 
   <div id="auth-card" class="card">
     <label for="email">メールアドレス</label>
-    <input type="email" id="email" placeholder="you@example.com">
+    <div class="input-icon-wrap">
+      <i data-lucide="mail"></i>
+      <input type="email" id="email" placeholder="you@example.com">
+    </div>
 
     <label for="password">パスワード(6文字以上)</label>
-    <input type="password" id="password" placeholder="••••••••">
+    <div class="input-icon-wrap">
+      <i data-lucide="lock"></i>
+      <input type="password" id="password" placeholder="••••••••">
+    </div>
 
-    <button class="btn-primary" id="login-btn">ログイン</button>
-    <button class="btn-secondary" id="signup-btn">はじめて使う人はこちら(新規登録)</button>
+    <button class="btn-primary" id="login-btn"><i data-lucide="log-in"></i> ログイン</button>
+    <button class="btn-secondary" id="signup-btn"><i data-lucide="user-plus"></i> はじめて使う方はこちら</button>
 
     <div id="message"></div>
   </div>
@@ -339,21 +405,23 @@
     </div>
 
     <div class="nav-bar">
-      <button class="nav-btn" data-view="home">🏠 ホーム</button>
-      <button class="nav-btn" data-view="shopping">🛒 買い物リスト</button>
-      <button class="nav-btn" data-view="inventory">📦 在庫確認</button>
+      <button class="nav-btn" data-view="home"><i data-lucide="home"></i> ホーム</button>
+      <button class="nav-btn" data-view="shopping"><i data-lucide="shopping-cart"></i> 買い物</button>
+      <button class="nav-btn" data-view="inventory"><i data-lucide="package"></i> 在庫</button>
     </div>
 
     <div id="view-home" class="view">
       <div class="card">
-        <button class="btn-secondary" id="scan-btn">📷 バーコードでスキャン</button>
-        <button class="btn-secondary" id="photo-btn">📸 写真でAI判定</button>
+        <div class="action-grid">
+          <button class="action-card" id="scan-btn"><i data-lucide="scan-line"></i><span>バーコード</span></button>
+          <button class="action-card" id="photo-btn"><i data-lucide="camera"></i><span>写真でAI判定</span></button>
+        </div>
         <input type="file" accept="image/*" capture="environment" id="photo-input" class="hidden">
 
         <div id="scanner-wrap" class="hidden">
           <div id="reader"></div>
           <p class="scan-hint">バーコード全体が枠に収まる距離(10〜15cmくらい)で、明るい場所で数秒待ってください</p>
-          <button class="btn-secondary" id="close-scanner-btn">キャンセル</button>
+          <button class="btn-secondary" id="close-scanner-btn"><i data-lucide="x"></i> キャンセル</button>
         </div>
 
         <label for="item-name">商品名</label>
@@ -384,22 +452,23 @@
           </div>
         </div>
 
-        <button class="btn-primary" id="add-item-btn">＋ 登録する</button>
+        <button class="btn-primary" id="add-item-btn"><i data-lucide="plus"></i> 登録する</button>
         <div id="add-message"></div>
       </div>
 
       <div id="review-section" class="card hidden">
+        <span class="review-badge">AI判定結果</span>
         <h2 style="margin-top:0;">写真から見つかった商品</h2>
         <p class="review-note">内容を確認・修正してから登録してください。同じ名前の商品がすでにあれば、数量がまとめて加算されます。</p>
         <div id="review-list"></div>
-        <button class="btn-primary" id="register-all-btn">まとめて登録する</button>
-        <button class="btn-secondary" id="cancel-review-btn">キャンセル</button>
+        <button class="btn-primary" id="register-all-btn"><i data-lucide="check-check"></i> まとめて登録する</button>
+        <button class="btn-secondary" id="cancel-review-btn"><i data-lucide="x"></i> キャンセル</button>
         <div id="review-message"></div>
       </div>
     </div>
 
     <div id="view-shopping" class="view hidden">
-      <h2 style="margin-top:0;">🛒 買い物リスト</h2>
+      <h2 style="margin-top:0;">買い物リスト</h2>
       <div class="card">
         <label for="shopping-name">買いたいもの(在庫にないものもOK)</label>
         <input type="text" id="shopping-name" placeholder="例: 来客用のお菓子">
@@ -409,7 +478,7 @@
             <select id="shopping-quantity"></select>
           </div>
           <div style="display:flex; align-items:flex-end;">
-            <button class="btn-primary" id="add-shopping-btn" style="margin-top:12px;">＋ リストに追加</button>
+            <button class="btn-primary" id="add-shopping-btn" style="margin-top:12px;"><i data-lucide="plus"></i> 追加</button>
           </div>
         </div>
         <div id="shopping-message"></div>
@@ -418,7 +487,7 @@
     </div>
 
     <div id="view-inventory" class="view hidden">
-      <h2 style="margin-top:0;">📦 在庫確認</h2>
+      <h2 style="margin-top:0;">在庫確認</h2>
       <div class="filter-row">
         <select id="filter-category">
           <option value="">すべての分類</option>
@@ -439,9 +508,9 @@
 <div id="calendar-overlay" class="hidden">
   <div id="calendar-modal">
     <div class="calendar-header">
-      <button type="button" id="cal-prev">‹</button>
+      <button type="button" id="cal-prev"><i data-lucide="chevron-left"></i></button>
       <span id="cal-month-label"></span>
-      <button type="button" id="cal-next">›</button>
+      <button type="button" id="cal-next"><i data-lucide="chevron-right"></i></button>
     </div>
     <div id="yearmonth-picker" class="yearmonth-picker hidden">
       <select id="cal-year-select"></select>
@@ -826,7 +895,7 @@
 
     reviewList.innerHTML = items.map((item, index) => `
       <div class="review-card" data-index="${index}">
-        <button class="del-btn review-remove-btn" type="button">✕</button>
+        <button class="del-btn review-remove-btn" type="button"><i data-lucide="x"></i></button>
 
         <label>商品名</label>
         <input type="text" class="review-name" value="${escapeHtml(item.name || "")}">
@@ -857,6 +926,8 @@
         </div>
       </div>
     `).join("");
+
+    if (window.lucide) lucide.createIcons();
 
     reviewList.querySelectorAll(".review-remove-btn").forEach(btn => {
       btn.addEventListener("click", () => btn.closest(".review-card").remove());
@@ -955,46 +1026,61 @@
       });
     });
     itemListEl.innerHTML = html;
+    if (window.lucide) lucide.createIcons();
   }
 
   function itemCardHtml(item) {
     const d = daysUntil(item.expiry_date);
     let statusClass = "";
-    let expiryHtml = "";
+    let expiryText = "未設定";
     if (d !== null) {
       if (d < 0) {
         statusClass = "expired";
-        expiryHtml = '<span class="expiry-label expired">期限切れ(' + (-d) + '日前)</span>';
+        expiryText = "期限切れ";
       } else if (d <= 3) {
         statusClass = "soon";
-        expiryHtml = '<span class="expiry-label soon">あと' + d + '日: ' + item.expiry_date + '</span>';
+        expiryText = "あと" + d + "日";
       } else {
-        expiryHtml = '<span>期限: ' + item.expiry_date + '</span>';
+        expiryText = "あと" + d + "日";
       }
     }
     const lowStock = Number(item.quantity) <= Number(item.low_stock_threshold);
 
     return `
       <div class="item-card ${statusClass}">
-        <div class="item-info">
+        <div class="item-card-header">
           <div class="item-name">${escapeHtml(item.name)}</div>
-          <div class="item-meta">
-            ${expiryHtml}
-            ${lowStock ? '<span class="expiry-label soon">在庫少なめ</span>' : ""}
-          </div>
-          <div class="item-threshold">
-            最低数量:
-            <input type="number" min="0" step="1" inputmode="numeric" pattern="[0-9]*"
-              value="${item.low_stock_threshold}"
-              onchange="updateThreshold('${item.id}', this.value)">
+          <div class="item-badges">
+            <span class="tag">${escapeHtml(item.tag || item.category)}</span>
+            ${lowStock ? '<span class="tag warning">在庫少なめ</span>' : ""}
           </div>
         </div>
-        <div class="qty-control">
-          <button class="qty-btn" onclick="adjustQty('${item.id}', ${item.quantity}, -1)">−</button>
-          <span class="qty-num">${item.quantity}${escapeHtml(item.unit)}</span>
-          <button class="qty-btn" onclick="adjustQty('${item.id}', ${item.quantity}, 1)">＋</button>
+        <div class="item-stats">
+          <div class="stat">
+            <span class="stat-label">在庫</span>
+            <span class="stat-value">${item.quantity}${escapeHtml(item.unit)}</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">賞味期限</span>
+            <span class="stat-value ${statusClass === "expired" ? "text-danger" : statusClass === "soon" ? "text-warning" : ""}">${expiryText}</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">最低数量</span>
+            <span class="stat-value">
+              <input type="number" class="threshold-input" min="0" step="1" inputmode="numeric" pattern="[0-9]*"
+                value="${item.low_stock_threshold}"
+                onchange="updateThreshold('${item.id}', this.value)">
+            </span>
+          </div>
         </div>
-        <button class="del-btn" onclick="deleteItem('${item.id}')">✕</button>
+        <div class="item-card-footer">
+          <div class="qty-control">
+            <button class="qty-btn" onclick="adjustQty('${item.id}', ${item.quantity}, -1)"><i data-lucide="minus"></i></button>
+            <span class="qty-num">${item.quantity}</span>
+            <button class="qty-btn" onclick="adjustQty('${item.id}', ${item.quantity}, 1)"><i data-lucide="plus"></i></button>
+          </div>
+          <button class="del-btn" onclick="deleteItem('${item.id}')"><i data-lucide="trash-2"></i> 削除</button>
+        </div>
       </div>
     `;
   }
@@ -1125,14 +1211,16 @@
 
     shoppingListEl.innerHTML = rows.map(row => `
       <div class="shopping-card ${row.item_id ? "" : "manual"}">
-        <button class="check-btn" onclick="markPurchased('${row.id}', ${row.item_id ? `'${row.item_id}'` : null}, ${row.quantity_needed})">✓</button>
+        <button class="check-btn" onclick="markPurchased('${row.id}', ${row.item_id ? `'${row.item_id}'` : null}, ${row.quantity_needed})"><i data-lucide="check"></i></button>
         <div class="shopping-info">
           <div class="shopping-name">${escapeHtml(row.name)}</div>
-          <div class="shopping-meta">数量: ${row.quantity_needed} ${row.item_id ? "・在庫連動" : "・自由入力"}</div>
+          <div class="shopping-meta">数量 ${row.quantity_needed} ・ ${row.item_id ? "在庫連動" : "自由入力"}</div>
         </div>
-        <button class="del-btn" onclick="removeShoppingItem('${row.id}')">✕</button>
+        <button class="del-btn" onclick="removeShoppingItem('${row.id}')"><i data-lucide="x"></i></button>
       </div>
     `).join("");
+
+    if (window.lucide) lucide.createIcons();
   }
 
   document.getElementById("add-shopping-btn").addEventListener("click", async () => {
@@ -1261,7 +1349,6 @@
     renderCalendar();
   });
 
-  // 年月ラベルをタップすると、プルダウンで直接ジャンプできるようにする
   const yearSelect = document.getElementById("cal-year-select");
   const monthSelect = document.getElementById("cal-month-select");
   for (let m = 1; m <= 12; m++) {
@@ -1305,12 +1392,13 @@
     if (e.target.id === "calendar-overlay") closeCalendar();
   });
 
-  // 写真AI判定で動的に増える日付欄にも対応できるよう、クリックはイベント委譲で拾う
   document.addEventListener("click", (e) => {
     if (e.target.classList && e.target.classList.contains("date-display")) {
       openCalendar(e.target);
     }
   });
+
+  if (window.lucide) lucide.createIcons();
 </script>
 
 </body>
