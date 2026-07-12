@@ -203,9 +203,21 @@
   }
   .calendar-grid .cal-day.empty { background: none; cursor: default; }
   .calendar-grid .cal-day.selected { background: #2f8f5b; color: #fff; font-weight: 600; }
-  .calendar-grid .cal-day.today { border: 1px solid #2f8f5b; }
+  .calendar-grid .cal-day.today {
+    background: #eaf6ee; color: #2f8f5b; font-weight: 700;
+    border: 2px solid #2f8f5b;
+  }
+  .calendar-grid .cal-day.today.selected { color: #fff; }
+  #cal-month-label {
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .yearmonth-picker { display: flex; gap: 8px; margin-bottom: 10px; }
+  .yearmonth-picker select { padding: 10px; }
   .calendar-footer { display: flex; gap: 8px; margin-top: 12px; }
   .calendar-footer button { margin-top: 0; flex: 1; }
+  #calendar-grid.hidden, #yearmonth-picker.hidden { display: none; }
 </style>
 </head>
 <body>
@@ -337,6 +349,10 @@
       <button type="button" id="cal-prev">‹</button>
       <span id="cal-month-label"></span>
       <button type="button" id="cal-next">›</button>
+    </div>
+    <div id="yearmonth-picker" class="yearmonth-picker hidden">
+      <select id="cal-year-select"></select>
+      <select id="cal-month-select"></select>
     </div>
     <div id="calendar-grid" class="calendar-grid"></div>
     <div class="calendar-footer">
@@ -1068,12 +1084,16 @@
     calendarTargetInput = targetInput;
     const existing = targetInput.value;
     calendarViewDate = existing ? new Date(existing + "T00:00:00") : new Date();
+    document.getElementById("yearmonth-picker").classList.add("hidden");
+    document.getElementById("calendar-grid").classList.remove("hidden");
     renderCalendar();
     document.getElementById("calendar-overlay").classList.remove("hidden");
   }
 
   function closeCalendar() {
     document.getElementById("calendar-overlay").classList.add("hidden");
+    document.getElementById("yearmonth-picker").classList.add("hidden");
+    document.getElementById("calendar-grid").classList.remove("hidden");
     calendarTargetInput = null;
   }
 
@@ -1119,6 +1139,41 @@
     calendarViewDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() + 1, 1);
     renderCalendar();
   });
+
+  // 年月ラベルをタップすると、プルダウンで直接ジャンプできるようにする
+  const yearSelect = document.getElementById("cal-year-select");
+  const monthSelect = document.getElementById("cal-month-select");
+  for (let m = 1; m <= 12; m++) {
+    const opt = document.createElement("option");
+    opt.value = m;
+    opt.textContent = m + "月";
+    monthSelect.appendChild(opt);
+  }
+
+  document.getElementById("cal-month-label").addEventListener("click", () => {
+    const nowYear = calendarViewDate.getFullYear();
+    yearSelect.innerHTML = "";
+    for (let y = nowYear - 5; y <= nowYear + 5; y++) {
+      const opt = document.createElement("option");
+      opt.value = y;
+      opt.textContent = y + "年";
+      if (y === nowYear) opt.selected = true;
+      yearSelect.appendChild(opt);
+    }
+    monthSelect.value = calendarViewDate.getMonth() + 1;
+
+    document.getElementById("yearmonth-picker").classList.remove("hidden");
+    document.getElementById("calendar-grid").classList.add("hidden");
+  });
+
+  function applyYearMonthSelection() {
+    calendarViewDate = new Date(Number(yearSelect.value), Number(monthSelect.value) - 1, 1);
+    document.getElementById("yearmonth-picker").classList.add("hidden");
+    document.getElementById("calendar-grid").classList.remove("hidden");
+    renderCalendar();
+  }
+  yearSelect.addEventListener("change", applyYearMonthSelection);
+  monthSelect.addEventListener("change", applyYearMonthSelection);
   document.getElementById("cal-clear").addEventListener("click", () => {
     if (calendarTargetInput) calendarTargetInput.value = "";
     closeCalendar();
