@@ -535,7 +535,7 @@
     flex-shrink: 0;
   }
 
-  /* --- 食材を登録: アコーディオンUI --- */
+  /* --- 食材を登録: セグメントタブ切り替え(スクロールが増えない、落ち着いたUI) --- */
   .accordion-panel-header {
     display: flex;
     align-items: center;
@@ -548,60 +548,45 @@
     font-weight: 600;
     color: var(--text);
   }
-  .accordion-item {
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    margin-bottom: 12px;
-    overflow: hidden;
-  }
-  .accordion-item:last-of-type { margin-bottom: 0; }
-  .accordion-header {
-    width: 100%;
+
+  .segmented-tabs {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+    gap: 4px;
     background: var(--bg);
-    border: none;
-    padding: 16px;
-    text-align: left;
-    height: auto;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 5px;
+    margin-bottom: 22px;
   }
-  .accordion-header:hover { background: var(--accent-tint); }
-  .accordion-header.open { background: var(--accent-tint); }
-  .accordion-header-left {
+  .segmented-tab {
+    flex: 1;
     display: flex;
     align-items: center;
-    gap: 14px;
-    min-width: 0;
-  }
-  .accordion-chevron {
-    width: 20px; height: 20px;
+    justify-content: center;
+    gap: 6px;
+    height: 42px;
+    padding: 0 4px;
+    background: transparent;
+    border: none;
+    border-radius: 999px;
     color: var(--text-muted);
-    flex-shrink: 0;
-    transition: transform 0.25s ease;
+    font-size: 12px;
+    font-weight: 500;
+    transition: background .2s ease, color .2s ease, box-shadow .2s ease;
   }
-  .accordion-header.open .accordion-chevron {
-    transform: rotate(180deg);
+  .segmented-tab .lucide { width: 15px; height: 15px; }
+  .segmented-tab.active {
+    background: #fff;
     color: var(--primary);
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(25,17,66,0.08);
   }
 
-  /* 高さが可変なコンテンツでも滑らかにスライド開閉できるgrid-rowsアニメーション */
-  .accordion-body {
-    display: grid;
-    grid-template-rows: 0fr;
-    transition: grid-template-rows 0.3s ease;
-    background: var(--card);
+  /* 選んだタブの中身だけを、静かにフェード+わずかに浮き上がる形で表示する */
+  .tab-panel {
+    display: none;
+    animation: fadeSlideIn .3s ease;
   }
-  .accordion-body.open {
-    grid-template-rows: 1fr;
-  }
-  .accordion-body-inner {
-    overflow: hidden;
-    min-height: 0;
-    padding: 0 16px;
-    transition: padding 0.25s ease;
-  }
-  .accordion-body.open .accordion-body-inner {
-    padding: 18px 16px 20px;
+  .tab-panel.active {
+    display: block;
   }

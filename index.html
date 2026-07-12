@@ -76,103 +76,82 @@
 
       <!-- 今後、賞味期限が近い食材・期限切れ・おすすめレシピ・在庫サマリーなどをここに追加予定 -->
 
-      <!-- 「食材を登録」アコーディオン(モーダル・画面遷移なし、この場で開閉) -->
+      <!-- 「食材を登録」パネル(モーダル・画面遷移なし。タブでバーコード/AI/手動を切り替え) -->
       <div id="register-accordion-section" class="card hidden" style="margin-top:16px;">
         <div class="accordion-panel-header">
           <h2 style="margin:0;">食材を登録</h2>
           <button class="modal-close-btn" id="close-register-accordion-btn"><i data-lucide="x"></i></button>
         </div>
 
-        <div class="accordion-item">
-          <button class="accordion-header" data-accordion-target="barcode">
-            <span class="accordion-header-left">
-              <span class="modal-option-icon"><i data-lucide="scan-line"></i></span>
-              <span class="modal-option-title">バーコードで登録</span>
-            </span>
-            <i data-lucide="chevron-down" class="accordion-chevron"></i>
+        <div class="segmented-tabs">
+          <button class="segmented-tab" data-tab-target="barcode">
+            <i data-lucide="scan-line"></i><span>バーコード</span>
           </button>
-          <div class="accordion-body" id="accordion-body-barcode">
-            <div class="accordion-body-inner">
-              <div id="scanner-wrap" class="hidden">
-                <div id="reader"></div>
-                <p class="scan-hint">バーコード全体が枠に収まる距離(10〜15cmくらい)で、明るい場所で数秒待ってください</p>
-                <button class="btn-secondary" id="close-scanner-btn"><i data-lucide="x"></i> キャンセル</button>
-              </div>
-              <button class="btn-primary" id="scan-btn"><i data-lucide="scan-line"></i> スキャンを開始する</button>
-            </div>
+          <button class="segmented-tab" data-tab-target="ai">
+            <i data-lucide="camera"></i><span>AI</span>
+          </button>
+          <button class="segmented-tab" data-tab-target="manual">
+            <i data-lucide="edit-3"></i><span>手動</span>
+          </button>
+        </div>
+
+        <div class="tab-panel" id="tab-panel-barcode">
+          <div id="scanner-wrap" class="hidden">
+            <div id="reader"></div>
+            <p class="scan-hint">バーコード全体が枠に収まる距離(10〜15cmくらい)で、明るい場所で数秒待ってください</p>
+            <button class="btn-secondary" id="close-scanner-btn"><i data-lucide="x"></i> キャンセル</button>
+          </div>
+          <button class="btn-primary" id="scan-btn"><i data-lucide="scan-line"></i> スキャンを開始する</button>
+        </div>
+
+        <div class="tab-panel" id="tab-panel-ai">
+          <input type="file" accept="image/*" capture="environment" id="photo-input" class="hidden">
+          <button class="btn-primary" id="photo-btn"><i data-lucide="camera"></i> 写真を撮影する</button>
+
+          <div id="review-section" class="hidden" style="margin-top:16px;">
+            <span class="review-badge">AI判定結果</span>
+            <h2 style="margin-top:0;">写真から見つかった商品</h2>
+            <p class="review-note">内容を確認・修正してから登録してください。同じ名前の商品がすでにあれば、数量がまとめて加算されます。</p>
+            <div id="review-list"></div>
+            <button class="btn-primary" id="register-all-btn"><i data-lucide="check-check"></i> まとめて登録する</button>
+            <button class="btn-secondary" id="cancel-review-btn"><i data-lucide="x"></i> キャンセル</button>
+            <div id="review-message"></div>
           </div>
         </div>
 
-        <div class="accordion-item">
-          <button class="accordion-header" data-accordion-target="ai">
-            <span class="accordion-header-left">
-              <span class="modal-option-icon"><i data-lucide="camera"></i></span>
-              <span class="modal-option-title">AIで登録</span>
-            </span>
-            <i data-lucide="chevron-down" class="accordion-chevron"></i>
-          </button>
-          <div class="accordion-body" id="accordion-body-ai">
-            <div class="accordion-body-inner">
-              <input type="file" accept="image/*" capture="environment" id="photo-input" class="hidden">
-              <button class="btn-primary" id="photo-btn"><i data-lucide="camera"></i> 写真を撮影する</button>
+        <div class="tab-panel" id="tab-panel-manual">
+          <label for="item-name">商品名</label>
+          <input type="text" id="item-name" placeholder="例: 牛乳">
 
-              <div id="review-section" class="hidden" style="margin-top:16px;">
-                <span class="review-badge">AI判定結果</span>
-                <h2 style="margin-top:0;">写真から見つかった商品</h2>
-                <p class="review-note">内容を確認・修正してから登録してください。同じ名前の商品がすでにあれば、数量がまとめて加算されます。</p>
-                <div id="review-list"></div>
-                <button class="btn-primary" id="register-all-btn"><i data-lucide="check-check"></i> まとめて登録する</button>
-                <button class="btn-secondary" id="cancel-review-btn"><i data-lucide="x"></i> キャンセル</button>
-                <div id="review-message"></div>
-              </div>
+          <div class="row2">
+            <div>
+              <label for="item-category">分類</label>
+              <select id="item-category">
+                <option value="食材">食材</option>
+                <option value="日用品">日用品</option>
+              </select>
+            </div>
+            <div>
+              <label for="item-unit">単位</label>
+              <input type="text" id="item-unit" placeholder="個・本など" value="個">
+              <div id="item-unit-suggestions" class="unit-chip-row"></div>
             </div>
           </div>
-        </div>
 
-        <div class="accordion-item">
-          <button class="accordion-header" data-accordion-target="manual">
-            <span class="accordion-header-left">
-              <span class="modal-option-icon"><i data-lucide="edit-3"></i></span>
-              <span class="modal-option-title">手動で登録</span>
-            </span>
-            <i data-lucide="chevron-down" class="accordion-chevron"></i>
-          </button>
-          <div class="accordion-body" id="accordion-body-manual">
-            <div class="accordion-body-inner">
-              <label for="item-name">商品名</label>
-              <input type="text" id="item-name" placeholder="例: 牛乳">
-
-              <div class="row2">
-                <div>
-                  <label for="item-category">分類</label>
-                  <select id="item-category">
-                    <option value="食材">食材</option>
-                    <option value="日用品">日用品</option>
-                  </select>
-                </div>
-                <div>
-                  <label for="item-unit">単位</label>
-                  <input type="text" id="item-unit" placeholder="個・本など" value="個">
-                  <div id="item-unit-suggestions" class="unit-chip-row"></div>
-                </div>
-              </div>
-
-              <div class="row2">
-                <div>
-                  <label for="item-quantity">数量</label>
-                  <select id="item-quantity"></select>
-                  <input type="number" id="item-quantity-numeric" class="hidden" min="0" step="any" inputmode="decimal" placeholder="例: 500">
-                </div>
-                <div>
-                  <label for="item-expiry">消費・賞味期限(任意)</label>
-                  <input type="text" id="item-expiry" class="date-display" placeholder="タップして選択" readonly>
-                </div>
-              </div>
-
-              <button class="btn-primary" id="add-item-btn"><i data-lucide="plus"></i> 登録する</button>
-              <div id="manual-add-message"></div>
+          <div class="row2">
+            <div>
+              <label for="item-quantity">数量</label>
+              <select id="item-quantity"></select>
+              <input type="number" id="item-quantity-numeric" class="hidden" min="0" step="any" inputmode="decimal" placeholder="例: 500">
+            </div>
+            <div>
+              <label for="item-expiry">消費・賞味期限(任意)</label>
+              <input type="text" id="item-expiry" class="date-display" placeholder="タップして選択" readonly>
             </div>
           </div>
+
+          <button class="btn-primary" id="add-item-btn"><i data-lucide="plus"></i> 登録する</button>
+          <div id="manual-add-message"></div>
         </div>
 
         <div id="add-message" style="margin-top:12px;"></div>
