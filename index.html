@@ -486,6 +486,7 @@
           <div>
             <label for="item-quantity">数量</label>
             <select id="item-quantity"></select>
+            <input type="number" id="item-quantity-numeric" class="hidden" min="0" step="any" inputmode="decimal" placeholder="例: 500">
           </div>
           <div>
             <label for="item-expiry">消費・賞味期限(任意)</label>
@@ -853,13 +854,68 @@
           unitInput.value = chip.dataset.unit;
           suggestBox.querySelectorAll(".unit-chip").forEach(c => c.classList.remove("selected"));
           chip.classList.add("selected");
+          updateItemQuantityMode();
         });
       });
     }
+    updateItemQuantityMode();
   }
 
   document.getElementById("item-name").addEventListener("input", updateUnitSuggestions);
   document.getElementById("item-name").addEventListener("blur", updateUnitSuggestions);
+
+  // ---------- 単位に応じて「数量」をプルダウン⇔テンキー入力に切り替え ----------
+
+  const CONTINUOUS_UNITS = ["g", "ml", "kg", "l", "L"];
+
+  function isContinuousUnit(unit) {
+    return CONTINUOUS_UNITS.includes((unit || "").trim());
+  }
+
+  // ホーム画面の数量欄の切り替え
+  function updateItemQuantityMode() {
+    const unit = document.getElementById("item-unit").value;
+    const selectEl = document.getElementById("item-quantity");
+    const numEl = document.getElementById("item-quantity-numeric");
+    if (isContinuousUnit(unit)) {
+      selectEl.classList.add("hidden");
+      numEl.classList.remove("hidden");
+      if (!numEl.value) numEl.value = numEl.value || "";
+    } else {
+      selectEl.classList.remove("hidden");
+      numEl.classList.add("hidden");
+    }
+  }
+  function getItemQuantityValue() {
+    const selectEl = document.getElementById("item-quantity");
+    const numEl = document.getElementById("item-quantity-numeric");
+    return numEl.classList.contains("hidden") ? selectEl.value : numEl.value;
+  }
+  document.getElementById("item-unit").addEventListener("input", updateItemQuantityMode);
+  updateItemQuantityMode();
+
+  // レビューカード(写真AI判定)側の数量欄の切り替え
+  function setupReviewQuantityToggle(card) {
+    const unitInput = card.querySelector(".review-unit");
+    const selectEl = card.querySelector(".review-quantity");
+    const numEl = card.querySelector(".review-quantity-numeric");
+    function refresh() {
+      if (isContinuousUnit(unitInput.value)) {
+        selectEl.classList.add("hidden");
+        numEl.classList.remove("hidden");
+      } else {
+        selectEl.classList.remove("hidden");
+        numEl.classList.add("hidden");
+      }
+    }
+    unitInput.addEventListener("input", refresh);
+    refresh();
+  }
+  function getReviewQuantityValue(card) {
+    const selectEl = card.querySelector(".review-quantity");
+    const numEl = card.querySelector(".review-quantity-numeric");
+    return numEl.classList.contains("hidden") ? selectEl.value : numEl.value;
+  }
 
   async function upsertItemByName({ name, category, unit, quantity, expiry_date, low_stock_threshold, barcode }) {
     const cleanName = (name || "").trim();
@@ -1029,7 +1085,8 @@
         <div class="row2">
           <div>
             <label>数量</label>
-            <select class="review-quantity">${buildQuantityOptionsHtml(item.quantity || 1)}</select>
+            <select class="review-quantity ${isContinuousUnit(item.unit) ? "hidden" : ""}">${buildQuantityOptionsHtml(item.quantity || 1)}</select>
+            <input type="number" class="review-quantity-numeric ${isContinuousUnit(item.unit) ? "" : "hidden"}" min="0" step="any" inputmode="decimal" placeholder="例: 500" value="${item.quantity || ""}">
           </div>
           <div>
             <label>消費・賞味期限(任意)</label>
@@ -1040,6 +1097,8 @@
     `).join("");
 
     if (window.lucide) lucide.createIcons();
+
+    reviewList.querySelectorAll(".review-card").forEach(card => setupReviewQuantityToggle(card));
 
     reviewList.querySelectorAll(".review-remove-btn").forEach(btn => {
       btn.addEventListener("click", () => btn.closest(".review-card").remove());
@@ -1069,7 +1128,7 @@
         name,
         category: card.querySelector(".review-category").value,
         unit: card.querySelector(".review-unit").value.trim() || "個",
-        quantity: parseFloat(card.querySelector(".review-quantity").value) || 0,
+        quantity: parseFloat(getReviewQuantityValue(card)) || 0,
         expiry_date: card.querySelector(".review-expiry").value || null
       });
       count++;
@@ -1201,7 +1260,7 @@
     const name = document.getElementById("item-name").value.trim();
     const category = document.getElementById("item-category").value;
     const unit = document.getElementById("item-unit").value.trim() || "個";
-    const quantity = parseFloat(document.getElementById("item-quantity").value) || 0;
+    const quantity = parseFloat(getItemQuantityValue()) || 0;
     const expiry = document.getElementById("item-expiry").value || null;
 
     if (!name) {
@@ -1224,6 +1283,8 @@
     document.getElementById("item-unit").value = "個";
     document.getElementById("item-unit-suggestions").innerHTML = "";
     document.getElementById("item-quantity").value = "1";
+    document.getElementById("item-quantity-numeric").value = "";
+    updateItemQuantityMode();
     document.getElementById("item-expiry").value = "";
     currentBarcodeValue = null;
   });
