@@ -1,0 +1,15 @@
+/* ==========================================================
+   KURA:S デザインシステム ― modal.css
+   モーダル専用(閉じるボタンなど)
+   ========================================================== */
+
+.modal-close-btn {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: var(--bg-1);
+  color: var(--text-secondary);
+  display: flex; align-items: center; justify-content: center;
+  padding: 0;
+}
+
+.modal-close-btn:hover { background: var(--primary-soft); color: var(--primary); }

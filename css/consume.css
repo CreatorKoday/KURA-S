@@ -1,0 +1,14 @@
+/* ==========================================================
+   KURA:S デザインシステム ― consume.css
+   食材消費画面専用(消費数量・手動検索結果など)
+   ========================================================== */
+
+.consume-quantity, .consume-all-btn { margin-top: 0; }
+
+.search-result-row { cursor: pointer; }
+
+.search-result-row .material-symbols-rounded { color: var(--primary); }
+
+#consume-scanner-wrap { margin-top: 4px; }
+
+#consume-reader { width: 100%; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border); margin-bottom: 12px; }

@@ -1,0 +1,85 @@
+/* ==========================================================
+   KURA:S デザインシステム ― inventory.css
+   在庫一覧専用
+   ========================================================== */
+
+h3.group-heading {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--primary);
+  margin: 22px 2px 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+h4.group-subheading {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  margin: 14px 4px 6px;
+}
+
+.item-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow-1);
+  border-left: 4px solid var(--primary);
+  animation: fadeSlideIn .3s ease;
+}
+
+.item-card.expired { border-left-color: var(--danger); }
+
+.item-card.soon { border-left-color: var(--warning); }
+
+.item-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+
+.item-badges { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+
+.tag {
+  display: inline-block; background: var(--primary-soft); color: var(--primary);
+  border-radius: var(--radius-pill); padding: 4px 10px; font-size: 10px;
+  letter-spacing: 0.02em; white-space: nowrap; font-weight: 700;
+}
+
+.tag.warning { background: rgba(229,160,59,0.14); color: #A66A17; }
+
+.item-stats {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+  padding: 14px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  margin-bottom: 14px;
+}
+
+.stat { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+
+.stat-label { font-size: 10px; letter-spacing: 0.03em; color: var(--text-tertiary); }
+
+.stat-value { font-size: 14px; font-weight: 700; color: var(--text); }
+
+.stat-value.text-danger { color: var(--danger); }
+
+.stat-value.text-warning { color: #A66A17; }
+
+.threshold-input { width: 52px; height: 30px; padding: 0 6px; font-size: 13px; border-radius: 8px; }
+
+.item-card-footer { display: flex; align-items: center; justify-content: space-between; }
+
+.qty-control { display: flex; align-items: center; gap: 10px; }
+
+.qty-btn {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--bg-1); border: 1px solid var(--border); color: var(--primary);
+  display: flex; align-items: center; justify-content: center; padding: 0;
+}
+
+.qty-btn:hover { background: var(--primary-soft); border-color: var(--primary); }
+
+.qty-btn .material-symbols-rounded { font-size: 17px; }
+
+.qty-num { min-width: 30px; text-align: center; font-size: 15px; font-weight: 700; color: var(--text); }
+
+.filter-row { display: flex; gap: 8px; margin-bottom: 12px; }

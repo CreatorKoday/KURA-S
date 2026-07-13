@@ -6,120 +6,125 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="KURA:S">
-<meta name="theme-color" content="#7B5CFF">
+<meta name="theme-color" content="#EFECFF">
 <title>KURA:S ― 暮らしを、もっとスマートに。</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Poppins:wght@200;300;400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;800&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..600,0..1,0&display=swap" rel="stylesheet">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/common.css">
+<link rel="stylesheet" href="css/animation.css">
+<link rel="stylesheet" href="css/modal.css">
+<link rel="stylesheet" href="css/accordion.css">
+<link rel="stylesheet" href="css/home.css">
+<link rel="stylesheet" href="css/register.css">
+<link rel="stylesheet" href="css/consume.css">
+<link rel="stylesheet" href="css/inventory.css">
+<link rel="stylesheet" href="css/shopping.css">
+<link rel="stylesheet" href="css/calendar.css">
 </head>
 <body>
 
 <div class="wrap">
-  <div class="brand-header">
-    <p class="brand-logo">KURA:S</p>
-    <p class="brand-tagline">暮らしを、もっとスマートに。</p>
-  </div>
 
-  <div id="auth-card" class="card">
+  <div id="auth-card" class="card auth-card">
+    <div class="brand-header">
+      <p class="brand-logo">KURA:S</p>
+      <p class="brand-tagline">暮らしを、もっとスマートに。</p>
+    </div>
+
     <label for="email">メールアドレス</label>
     <div class="input-icon-wrap">
-      <i data-lucide="mail"></i>
+      <span class="material-symbols-rounded">mail</span>
       <input type="email" id="email" placeholder="you@example.com">
     </div>
 
     <label for="password">パスワード(6文字以上)</label>
     <div class="input-icon-wrap">
-      <i data-lucide="lock"></i>
+      <span class="material-symbols-rounded">lock</span>
       <input type="password" id="password" placeholder="••••••••">
     </div>
 
-    <button class="btn-primary" id="login-btn"><i data-lucide="log-in"></i> ログイン</button>
-    <button class="btn-secondary" id="signup-btn"><i data-lucide="user-plus"></i> はじめて使う方はこちら</button>
+    <button class="btn-primary" id="login-btn"><span class="material-symbols-rounded">login</span> ログイン</button>
+    <button class="btn-secondary" id="signup-btn"><span class="material-symbols-rounded">person_add</span> はじめて使う方はこちら</button>
 
     <div id="message"></div>
   </div>
 
   <div id="logged-in-area" class="hidden">
 
-    <div class="top-bar">
-      <span>ログイン中: <strong id="user-email"></strong></span>
-      <button id="logout-btn">ログアウト</button>
-    </div>
-
-    <div class="nav-bar">
-      <button class="nav-btn" data-view="home"><i data-lucide="home"></i> ホーム</button>
-      <button class="nav-btn" data-view="shopping"><i data-lucide="shopping-cart"></i> 買い物</button>
-      <button class="nav-btn" data-view="inventory"><i data-lucide="package"></i> 在庫</button>
+    <div class="app-header">
+      <p class="app-header-logo">KURA:S</p>
+      <div class="app-header-user">
+        <span id="user-email"></span>
+        <button id="logout-btn" aria-label="ログアウト"><span class="material-symbols-rounded">logout</span></button>
+      </div>
     </div>
 
     <div id="view-home" class="view">
 
       <!-- アクションメニュー: 1タップでそれぞれの機能を開く -->
+      <p class="section-label">できること</p>
       <div class="action-menu-grid">
         <button class="action-menu-card register" data-target="barcode">
-          <span class="action-menu-icon"><i data-lucide="scan-line"></i></span>
+          <span class="action-menu-icon"><span class="material-symbols-rounded">barcode_scanner</span></span>
           <span class="action-menu-label">バーコード登録</span>
         </button>
         <button class="action-menu-card consume" data-target="consume-barcode">
-          <span class="action-menu-icon"><i data-lucide="scan-line"></i></span>
+          <span class="action-menu-icon"><span class="material-symbols-rounded">barcode_scanner</span></span>
           <span class="action-menu-label">バーコード削除</span>
         </button>
         <button class="action-menu-card register" data-target="ai">
-          <span class="action-menu-icon"><i data-lucide="camera"></i></span>
+          <span class="action-menu-icon"><span class="material-symbols-rounded">photo_camera</span></span>
           <span class="action-menu-label">AI登録</span>
         </button>
         <button class="action-menu-card consume" data-target="consume-ai">
-          <span class="action-menu-icon"><i data-lucide="camera"></i></span>
+          <span class="action-menu-icon"><span class="material-symbols-rounded">photo_camera</span></span>
           <span class="action-menu-label">AI削除</span>
         </button>
         <button class="action-menu-card register" data-target="manual">
-          <span class="action-menu-icon"><i data-lucide="edit-3"></i></span>
+          <span class="action-menu-icon"><span class="material-symbols-rounded">edit</span></span>
           <span class="action-menu-label">手動登録</span>
         </button>
         <button class="action-menu-card consume" data-target="consume-manual">
-          <span class="action-menu-icon"><i data-lucide="trash-2"></i></span>
+          <span class="action-menu-icon"><span class="material-symbols-rounded">delete</span></span>
           <span class="action-menu-label">手動削除</span>
         </button>
       </div>
 
-      <!-- 今後、賞味期限が近い食材・期限切れ・おすすめレシピ・在庫サマリーなどをここに追加予定 -->
-
-      <div id="add-message" style="margin:10px 0;"></div>
+      <div id="add-message" style="margin:14px 0;"></div>
 
       <!-- 選択した機能がここに直接開く(モード選択・タブ選択なし) -->
-      <div id="action-panel-section" class="card hidden" style="margin-top:16px;">
+      <div id="action-panel-section" class="card hidden" style="margin-top:8px;">
         <div class="accordion-panel-header">
           <h2 id="action-panel-title" style="margin:0;"></h2>
-          <button class="modal-close-btn" id="close-action-panel-btn"><i data-lucide="x"></i></button>
+          <button class="modal-close-btn" id="close-action-panel-btn"><span class="material-symbols-rounded">close</span></button>
         </div>
 
         <div class="tab-panel" id="tab-panel-barcode">
           <div id="scanner-wrap" class="hidden">
             <div id="reader"></div>
             <p class="scan-hint">バーコード全体が枠に収まる距離(10〜15cmくらい)で、明るい場所で数秒待ってください</p>
-            <button class="btn-secondary" id="close-scanner-btn"><i data-lucide="x"></i> キャンセル</button>
+            <button class="btn-secondary" id="close-scanner-btn"><span class="material-symbols-rounded">close</span> キャンセル</button>
           </div>
-          <button class="btn-primary" id="scan-btn"><i data-lucide="scan-line"></i> スキャンを開始する</button>
+          <button class="btn-primary" id="scan-btn"><span class="material-symbols-rounded">barcode_scanner</span> スキャンを開始する</button>
         </div>
 
         <div class="tab-panel" id="tab-panel-ai">
           <input type="file" accept="image/*" capture="environment" id="photo-input" class="hidden">
-          <button class="btn-primary" id="photo-btn"><i data-lucide="camera"></i> 写真を撮影する</button>
+          <button class="btn-primary" id="photo-btn"><span class="material-symbols-rounded">photo_camera</span> 写真を撮影する</button>
 
           <div id="review-section" class="hidden" style="margin-top:16px;">
             <span class="review-badge">AI判定結果</span>
             <h2 style="margin-top:0;">写真から見つかった商品</h2>
             <p class="review-note">内容を確認・修正してから登録してください。同じ名前の商品がすでにあれば、数量がまとめて加算されます。</p>
             <div id="review-list"></div>
-            <button class="btn-primary" id="register-all-btn"><i data-lucide="check-check"></i> まとめて登録する</button>
-            <button class="btn-secondary" id="cancel-review-btn"><i data-lucide="x"></i> キャンセル</button>
+            <button class="btn-primary" id="register-all-btn"><span class="material-symbols-rounded">done_all</span> まとめて登録する</button>
+            <button class="btn-secondary" id="cancel-review-btn"><span class="material-symbols-rounded">close</span> キャンセル</button>
             <div id="review-message"></div>
           </div>
         </div>
@@ -155,7 +160,7 @@
             </div>
           </div>
 
-          <button class="btn-primary" id="add-item-btn"><i data-lucide="plus"></i> 登録する</button>
+          <button class="btn-primary" id="add-item-btn"><span class="material-symbols-rounded">add</span> 登録する</button>
           <div id="manual-add-message"></div>
         </div>
 
@@ -163,14 +168,14 @@
           <div id="consume-scanner-wrap" class="hidden">
             <div id="consume-reader"></div>
             <p class="scan-hint">バーコード全体が枠に収まる距離(10〜15cmくらい)で、明るい場所で数秒待ってください</p>
-            <button class="btn-secondary" id="close-consume-scanner-btn"><i data-lucide="x"></i> キャンセル</button>
+            <button class="btn-secondary" id="close-consume-scanner-btn"><span class="material-symbols-rounded">close</span> キャンセル</button>
           </div>
-          <button class="btn-primary" id="consume-scan-btn"><i data-lucide="scan-line"></i> スキャンを開始する</button>
+          <button class="btn-primary" id="consume-scan-btn"><span class="material-symbols-rounded">barcode_scanner</span> スキャンを開始する</button>
         </div>
 
         <div class="tab-panel" id="tab-panel-consume-ai">
           <input type="file" accept="image/*" capture="environment" id="consume-photo-input" class="hidden">
-          <button class="btn-primary" id="consume-photo-btn"><i data-lucide="camera"></i> 写真を撮影する</button>
+          <button class="btn-primary" id="consume-photo-btn"><span class="material-symbols-rounded">photo_camera</span> 写真を撮影する</button>
         </div>
 
         <div class="tab-panel" id="tab-panel-consume-manual">
@@ -181,28 +186,47 @@
           <div id="manual-consume-review-section" class="hidden" style="margin-top:16px;">
             <h2 style="margin-top:0;">消費する商品</h2>
             <div id="manual-consume-review-list"></div>
-            <button class="btn-primary" id="manual-confirm-consume-btn"><i data-lucide="check-check"></i> 消費する</button>
+            <button class="btn-primary" id="manual-confirm-consume-btn"><span class="material-symbols-rounded">done_all</span> 消費する</button>
             <div id="manual-consume-message"></div>
           </div>
         </div>
 
         <!-- バーコード/AIどちらの消費結果もここに共通表示 -->
         <div id="consume-review-section" class="hidden" style="margin-top:16px;">
-          <span class="review-badge" style="background:#FEE2E2; color:#B91C1C;">消費登録</span>
+          <span class="review-badge" style="background:rgba(229,72,77,0.1); color:#C4383D;">消費登録</span>
           <h2 style="margin-top:0;">在庫から消費する商品</h2>
           <p class="review-note">数量を確認し、必要であれば調整してから確定してください。「すべて消費」で在庫を0にできます。</p>
           <div id="consume-review-list"></div>
-          <button class="btn-primary" id="confirm-consume-btn"><i data-lucide="check-check"></i> 消費する</button>
-          <button class="btn-secondary" id="cancel-consume-btn"><i data-lucide="x"></i> キャンセル</button>
+          <button class="btn-primary" id="confirm-consume-btn"><span class="material-symbols-rounded">done_all</span> 消費する</button>
+          <button class="btn-secondary" id="cancel-consume-btn"><span class="material-symbols-rounded">close</span> キャンセル</button>
         </div>
 
         <div id="consume-message" style="margin-top:12px;"></div>
       </div>
+
+      <!-- 今後の拡張予定(レイアウト検討用のプレースホルダー) -->
+      <p class="section-label" style="margin-top:28px;">まもなく使える機能</p>
+      <div class="insight-grid">
+        <div class="insight-card muted">
+          <span class="insight-icon"><span class="material-symbols-rounded">schedule</span></span>
+          <span class="insight-title">期限が近い食材</span>
+          <span class="insight-desc">近日公開</span>
+        </div>
+        <div class="insight-card muted">
+          <span class="insight-icon"><span class="material-symbols-rounded">restaurant</span></span>
+          <span class="insight-title">おすすめレシピ</span>
+          <span class="insight-desc">近日公開</span>
+        </div>
+        <div class="insight-card muted">
+          <span class="insight-icon"><span class="material-symbols-rounded">bar_chart</span></span>
+          <span class="insight-title">在庫サマリー</span>
+          <span class="insight-desc">近日公開</span>
+        </div>
+      </div>
     </div>
 
     <div id="view-shopping" class="view hidden">
-
-      <h2 style="margin-top:0;">買い物リスト</h2>
+      <h2 class="view-title">買い物リスト</h2>
       <div class="card">
         <label for="shopping-name">買いたいもの(在庫にないものもOK)</label>
         <input type="text" id="shopping-name" placeholder="例: 来客用のお菓子">
@@ -212,7 +236,7 @@
             <select id="shopping-quantity"></select>
           </div>
           <div style="display:flex; align-items:flex-end;">
-            <button class="btn-primary" id="add-shopping-btn" style="margin-top:12px;"><i data-lucide="plus"></i> 追加</button>
+            <button class="btn-primary" id="add-shopping-btn" style="margin-top:12px;"><span class="material-symbols-rounded">add</span> 追加</button>
           </div>
         </div>
         <div id="shopping-message"></div>
@@ -221,7 +245,7 @@
     </div>
 
     <div id="view-inventory" class="view hidden">
-      <h2 style="margin-top:0;">在庫確認</h2>
+      <h2 class="view-title">在庫確認</h2>
       <div class="filter-row">
         <select id="filter-category">
           <option value="">すべての分類</option>
@@ -235,6 +259,12 @@
       <div id="item-list"></div>
     </div>
 
+    <div class="nav-bar">
+      <button class="nav-btn" data-view="home"><span class="material-symbols-rounded">home</span><span>ホーム</span></button>
+      <button class="nav-btn" data-view="shopping"><span class="material-symbols-rounded">shopping_cart</span><span>買い物</span></button>
+      <button class="nav-btn" data-view="inventory"><span class="material-symbols-rounded">inventory_2</span><span>在庫</span></button>
+    </div>
+
   </div>
 </div>
 
@@ -242,9 +272,9 @@
 <div id="calendar-overlay" class="hidden">
   <div id="calendar-modal">
     <div class="calendar-header">
-      <button type="button" id="cal-prev"><i data-lucide="chevron-left"></i></button>
+      <button type="button" id="cal-prev"><span class="material-symbols-rounded">chevron_left</span></button>
       <span id="cal-month-label"></span>
-      <button type="button" id="cal-next"><i data-lucide="chevron-right"></i></button>
+      <button type="button" id="cal-next"><span class="material-symbols-rounded">chevron_right</span></button>
     </div>
     <div id="yearmonth-picker" class="yearmonth-picker hidden">
       <select id="cal-year-select"></select>

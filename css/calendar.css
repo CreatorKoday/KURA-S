@@ -1,0 +1,72 @@
+/* ==========================================================
+   KURA:S デザインシステム ― calendar.css
+   自作カレンダー専用(日付選択)
+   ========================================================== */
+
+.date-display { cursor: pointer; background: var(--surface); }
+
+#calendar-overlay {
+  position: fixed; inset: 0; background: rgba(20, 14, 45, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; padding: 20px;
+  animation: fadeIn .2s ease;
+}
+
+#calendar-overlay.hidden { display: none; }
+
+#calendar-modal {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 24px; padding: 22px;
+  width: 100%; max-width: 340px;
+  box-shadow: var(--shadow-3);
+  animation: fadeSlideIn .25s ease;
+}
+
+.calendar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+
+.calendar-header button {
+  background: var(--bg-1); border: 1px solid var(--border); color: var(--primary); width: 34px; height: 34px;
+  border-radius: 50%; padding: 0; margin-top: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.calendar-header button:hover { background: var(--primary-soft); border-color: var(--primary); }
+
+#cal-month-label {
+  font-family: 'Noto Sans JP', sans-serif;
+  font-weight: 700; font-size: 16px; color: var(--text);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--primary);
+  text-underline-offset: 4px;
+}
+
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+
+.calendar-grid .cal-dow { text-align: center; font-size: 10px; color: var(--text-tertiary); padding: 4px 0; }
+
+.calendar-grid .cal-day {
+  text-align: center; padding: 9px 0; border-radius: 10px; font-size: 13px;
+  cursor: pointer; background: transparent; color: var(--text);
+  transition: background .15s ease;
+}
+
+.calendar-grid .cal-day.empty { background: none; cursor: default; }
+
+.calendar-grid .cal-day:not(.empty):hover { background: var(--primary-soft); }
+
+.calendar-grid .cal-day.selected { background: var(--primary); color: #fff; font-weight: 700; }
+
+.calendar-grid .cal-day.today { background: var(--primary-soft); color: var(--primary); font-weight: 700; border: 1px solid var(--primary); }
+
+.calendar-grid .cal-day.today.selected { color: #fff; background: var(--primary); border-color: var(--primary); }
+
+.yearmonth-picker { display: flex; gap: 8px; margin-bottom: 12px; }
+
+.yearmonth-picker select { height: 44px; }
+
+.calendar-footer { display: flex; gap: 8px; margin-top: 16px; }
+
+.calendar-footer button { margin-top: 0; flex: 1; height: 44px; }
+
+#calendar-grid.hidden, #yearmonth-picker.hidden { display: none; }

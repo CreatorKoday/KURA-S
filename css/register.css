@@ -1,0 +1,21 @@
+/* ==========================================================
+   KURA:S デザインシステム ― register.css
+   食材登録画面専用(単位チップなど)
+   ========================================================== */
+
+.unit-chip-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+
+.unit-chip {
+  height: auto; padding: 5px 12px;
+  background: var(--primary-soft); color: var(--primary);
+  border: 1px solid transparent; border-radius: var(--radius-pill);
+  font-size: 12px; font-weight: 600;
+}
+
+.unit-chip:hover { border-color: var(--primary); }
+
+.unit-chip.selected { background: var(--primary); color: #fff; }
+
+#scanner-wrap { margin-top: 4px; }
+
+#reader { width: 100%; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border); margin-bottom: 12px; }

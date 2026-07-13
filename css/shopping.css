@@ -1,0 +1,33 @@
+/* ==========================================================
+   KURA:S デザインシステム ― shopping.css
+   買い物リスト専用
+   ========================================================== */
+
+.shopping-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: 14px 18px; margin-bottom: 10px;
+  box-shadow: var(--shadow-1);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  border-left: 4px solid var(--success);
+  animation: fadeSlideIn .3s ease;
+}
+
+.shopping-card.manual { border-left-color: var(--border-strong); }
+
+.shopping-info { flex: 1; min-width: 0; }
+
+.shopping-name { font-family: 'Noto Sans JP', sans-serif; font-size: 16px; font-weight: 700; color: var(--text); }
+
+.shopping-meta { font-size: 11px; color: var(--text-tertiary); margin-top: 3px; }
+
+.check-btn {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--gradient-primary);
+  border: none; color: #fff; padding: 0; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 10px rgba(108,79,246,0.3);
+}
+
+.check-btn:hover { transform: translateY(-1px) scale(1.04); }
+
+.check-btn .material-symbols-rounded { font-size: 18px; }

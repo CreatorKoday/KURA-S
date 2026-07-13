@@ -1,0 +1,14 @@
+/* ==========================================================
+   KURA:S デザインシステム ― animation.css
+   アニメーション専用(keyframes・画面遷移フェード)
+   ========================================================== */
+
+@keyframes fadeSlideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+@keyframes viewFade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+#view-home, #view-shopping, #view-inventory.view { animation: viewFade .25s ease; }
+
+.view { animation: viewFade .25s ease; }
