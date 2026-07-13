@@ -70,12 +70,12 @@ function renderShoppingList(rows) {
 
   shoppingListEl.innerHTML = rows.map(row => `
     <div class="shopping-card ${row.item_id ? "" : "manual"}">
-      <button class="check-btn" onclick="markPurchased('${row.id}', ${row.item_id ? `'${row.item_id}'` : null}, ${row.quantity_needed})"><i data-lucide="check"></i></button>
+      <button class="check-btn" data-action="mark-purchased" data-id="${row.id}" data-item-id="${row.item_id || ""}" data-quantity="${row.quantity_needed}"><i data-lucide="check"></i></button>
       <div class="shopping-info">
         <div class="shopping-name">${escapeHtml(row.name)}</div>
         <div class="shopping-meta">数量 ${row.quantity_needed} ・ ${row.item_id ? "在庫連動" : "自由入力"}</div>
       </div>
-      <button class="del-btn" onclick="removeShoppingItem('${row.id}')"><i data-lucide="x"></i></button>
+      <button class="del-btn" data-action="remove-shopping-item" data-id="${row.id}"><i data-lucide="x"></i></button>
     </div>
   `).join("");
 
@@ -106,7 +106,7 @@ document.getElementById("add-shopping-btn").addEventListener("click", async () =
   loadShoppingList();
 });
 
-window.markPurchased = async function(shoppingId, itemId, quantityNeeded) {
+async function markPurchased(shoppingId, itemId, quantityNeeded) {
   const { error } = await supabaseClient.from("shopping_list").delete().eq("id", shoppingId);
   if (error) {
     console.error("買い物リストの更新に失敗:", error);
@@ -124,10 +124,21 @@ window.markPurchased = async function(shoppingId, itemId, quantityNeeded) {
   }
 
   loadShoppingList();
-};
+}
 
-window.removeShoppingItem = async function(id) {
+async function removeShoppingItem(id) {
   if (!confirm("このリストの項目を削除しますか?")) return;
   const { error } = await supabaseClient.from("shopping_list").delete().eq("id", id);
   if (!error) loadShoppingList();
-};
+}
+
+// カード内のボタンはloadShoppingList()のたびに再生成されるため、shoppingListElへの委譲で拾う
+shoppingListEl.addEventListener("click", (e) => {
+  const purchaseBtn = e.target.closest('[data-action="mark-purchased"]');
+  if (purchaseBtn) {
+    markPurchased(purchaseBtn.dataset.id, purchaseBtn.dataset.itemId || null, Number(purchaseBtn.dataset.quantity));
+    return;
+  }
+  const removeBtn = e.target.closest('[data-action="remove-shopping-item"]');
+  if (removeBtn) removeShoppingItem(removeBtn.dataset.id);
+});

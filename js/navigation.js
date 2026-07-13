@@ -15,9 +15,6 @@ export function switchView(view) {
   if (view === "inventory") loadItems();
 }
 
-// 「戻る」ボタンなど、HTML側の onclick="switchView('home')" から呼べるようにする
-window.switchView = switchView;
-
 document.querySelectorAll(".nav-btn").forEach(btn => {
   btn.addEventListener("click", () => switchView(btn.dataset.view));
 });

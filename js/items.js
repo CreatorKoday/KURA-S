@@ -155,17 +155,17 @@ function itemCardHtml(item) {
           <span class="stat-value">
             <input type="number" class="threshold-input" min="0" step="1" inputmode="numeric" pattern="[0-9]*"
               value="${item.low_stock_threshold}"
-              onchange="updateThreshold('${item.id}', this.value)">
+              data-action="update-threshold" data-id="${item.id}">
           </span>
         </div>
       </div>
       <div class="item-card-footer">
         <div class="qty-control">
-          <button class="qty-btn" onclick="adjustQty('${item.id}', ${item.quantity}, -1)"><i data-lucide="minus"></i></button>
+          <button class="qty-btn" data-action="adjust-qty" data-id="${item.id}" data-current-qty="${item.quantity}" data-delta="-1"><i data-lucide="minus"></i></button>
           <span class="qty-num">${item.quantity}</span>
-          <button class="qty-btn" onclick="adjustQty('${item.id}', ${item.quantity}, 1)"><i data-lucide="plus"></i></button>
+          <button class="qty-btn" data-action="adjust-qty" data-id="${item.id}" data-current-qty="${item.quantity}" data-delta="1"><i data-lucide="plus"></i></button>
         </div>
-        <button class="del-btn" onclick="deleteItem('${item.id}')"><i data-lucide="trash-2"></i> 削除</button>
+        <button class="del-btn" data-action="delete-item" data-id="${item.id}"><i data-lucide="trash-2"></i> 削除</button>
       </div>
     </div>
   `;
@@ -204,7 +204,7 @@ document.getElementById("add-item-btn").addEventListener("click", async () => {
   resetCurrentBarcodeValue();
 });
 
-window.adjustQty = async function(id, currentQty, delta) {
+async function adjustQty(id, currentQty, delta) {
   const newQty = Math.max(0, Number(currentQty) + delta);
   const { error } = await supabaseClient
     .from("items")
@@ -216,9 +216,9 @@ window.adjustQty = async function(id, currentQty, delta) {
   } else {
     console.error("数量の更新に失敗:", error);
   }
-};
+}
 
-window.updateThreshold = async function(id, value) {
+async function updateThreshold(id, value) {
   const v = Math.max(0, parseFloat(value) || 0);
   const { error } = await supabaseClient
     .from("items")
@@ -229,13 +229,29 @@ window.updateThreshold = async function(id, value) {
   } else {
     console.error("最低数量の更新に失敗:", error);
   }
-};
+}
 
-window.deleteItem = async function(id) {
+async function deleteItem(id) {
   if (!confirm("この項目を削除しますか?")) return;
   const { error } = await supabaseClient.from("items").delete().eq("id", id);
   if (!error) {
     loadItems();
     loadShoppingList();
   }
-};
+}
+
+// カード内のボタン/入力はloadItems()のたびに再生成されるため、itemListElへの委譲で拾う
+itemListEl.addEventListener("click", (e) => {
+  const qtyBtn = e.target.closest('[data-action="adjust-qty"]');
+  if (qtyBtn) {
+    adjustQty(qtyBtn.dataset.id, Number(qtyBtn.dataset.currentQty), Number(qtyBtn.dataset.delta));
+    return;
+  }
+  const delBtn = e.target.closest('[data-action="delete-item"]');
+  if (delBtn) deleteItem(delBtn.dataset.id);
+});
+
+itemListEl.addEventListener("change", (e) => {
+  const thresholdInput = e.target.closest('[data-action="update-threshold"]');
+  if (thresholdInput) updateThreshold(thresholdInput.dataset.id, thresholdInput.value);
+});
