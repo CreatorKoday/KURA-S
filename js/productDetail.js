@@ -137,15 +137,14 @@ document.getElementById("pd-edit-keywords").addEventListener("click", (e) => {
   renderEditKeywords();
 });
 
-document.getElementById("pd-edit-keyword-input").addEventListener("keydown", (e) => {
-  if (e.key !== "Enter") return;
-  e.preventDefault();
-  const value = e.target.value.trim();
+document.getElementById("pd-edit-keyword-add-btn").addEventListener("click", () => {
+  const input = document.getElementById("pd-edit-keyword-input");
+  const value = input.value.trim();
   if (value && !editKeywords.includes(value)) {
     editKeywords.push(value);
     renderEditKeywords();
   }
-  e.target.value = "";
+  input.value = "";
 });
 
 document.getElementById("product-detail-edit-btn").addEventListener("click", renderEdit);

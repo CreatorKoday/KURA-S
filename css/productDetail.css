@@ -148,6 +148,25 @@
 
 .product-detail-keyword-chip .remove:hover { color: var(--danger); }
 
+.product-detail-keyword-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.product-detail-keyword-input-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.product-detail-keyword-input-row .btn-secondary {
+  width: auto;
+  flex-shrink: 0;
+  margin-top: 0;
+  padding: 0 18px;
+}
+
 #product-detail-empty,
 #product-detail-loading {
   padding: 28px 0 12px;

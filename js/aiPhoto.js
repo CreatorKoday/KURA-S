@@ -108,8 +108,6 @@ function renderReviewList(items) {
 
   reviewList.innerHTML = items.map((item, index) => `
     <div class="review-card" data-index="${index}">
-      <button class="del-btn review-remove-btn" type="button"><i data-lucide="x"></i></button>
-
       <label>商品名</label>
       <input type="text" class="review-name" value="${escapeHtml(item.name || "")}">
 
@@ -138,6 +136,11 @@ function renderReviewList(items) {
           <input type="text" class="review-expiry date-display" placeholder="タップして選択" readonly>
         </div>
       </div>
+
+      <div class="review-card-actions">
+        <button type="button" class="btn-secondary review-register-btn"><span class="material-symbols-rounded">check</span> 登録</button>
+        <button type="button" class="btn-secondary review-remove-btn"><span class="material-symbols-rounded">delete</span> 削除</button>
+      </div>
     </div>
   `).join("");
 
@@ -146,11 +149,59 @@ function renderReviewList(items) {
   reviewList.querySelectorAll(".review-card").forEach(card => setupReviewQuantityToggle(card));
 
   reviewList.querySelectorAll(".review-remove-btn").forEach(btn => {
-    btn.addEventListener("click", () => btn.closest(".review-card").remove());
+    btn.addEventListener("click", () => removeReviewCard(btn.closest(".review-card")));
+  });
+
+  reviewList.querySelectorAll(".review-register-btn").forEach(btn => {
+    btn.addEventListener("click", () => registerReviewCard(btn.closest(".review-card")));
   });
 
   reviewSection.classList.remove("hidden");
   reviewSection.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// カードが1件も残っていなければ、AI登録エリア自体を閉じる(まとめて登録完了時と同じ後処理)
+function closeReviewIfEmpty() {
+  if (document.querySelectorAll("#review-list .review-card").length === 0) {
+    document.getElementById("review-section").classList.add("hidden");
+    document.getElementById("review-list").innerHTML = "";
+  }
+}
+
+// 「削除」: AIへの再問い合わせはせず、そのカードを画面から取り除くだけ
+function removeReviewCard(card) {
+  card.remove();
+  closeReviewIfEmpty();
+}
+
+// 「登録」: そのカード1件だけを登録する
+async function registerReviewCard(card) {
+  const name = card.querySelector(".review-name").value.trim();
+  if (!name) {
+    showMessage(reviewMessageBox, "商品名を入力してください", true);
+    return;
+  }
+
+  const registerBtn = card.querySelector(".review-register-btn");
+  registerBtn.disabled = true;
+
+  const id = await upsertItemByName({
+    name,
+    category: card.querySelector(".review-category").value,
+    unit: card.querySelector(".review-unit").value.trim() || "個",
+    quantity: parseFloat(getReviewQuantityValue(card)) || 0,
+    expiry_date: card.querySelector(".review-expiry").value || null
+  });
+
+  if (!id) {
+    registerBtn.disabled = false;
+    showMessage(reviewMessageBox, "登録に失敗しました。もう一度お試しください。", true);
+    return;
+  }
+
+  card.remove();
+  closeReviewIfEmpty();
+  showMessage(addMessageBox, "「" + name + "」を登録しました", false);
 }
 
 document.getElementById("cancel-review-btn").addEventListener("click", () => {
