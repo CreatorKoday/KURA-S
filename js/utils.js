@@ -35,3 +35,11 @@ export function fillQuantitySelect(selectEl, min, max, selected) {
     selectEl.appendChild(opt);
   }
 }
+
+// item_lots(quantity)を埋め込んだ商品行から、消費フロー等で使う集計済み数量(quantity)を持つ配列を作る
+export function withTotalQuantity(rows) {
+  return (rows || []).map(item => ({
+    ...item,
+    quantity: (item.item_lots || []).reduce((sum, l) => sum + Number(l.quantity), 0)
+  }));
+}

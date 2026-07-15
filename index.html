@@ -26,6 +26,7 @@
 <link rel="stylesheet" href="css/inventory.css">
 <link rel="stylesheet" href="css/shopping.css">
 <link rel="stylesheet" href="css/calendar.css">
+<link rel="stylesheet" href="css/productDetail.css">
 </head>
 <body>
 
@@ -67,56 +68,54 @@
 
     <div id="view-home" class="view">
 
-      <!-- アクションメニュー: 1タップでそれぞれの機能を開く -->
-      <p class="section-label">できること</p>
-      <div class="action-menu-grid">
-        <button class="action-menu-card register" data-target="barcode">
-          <span class="action-menu-icon"><span class="material-symbols-rounded">barcode_scanner</span></span>
-          <span class="action-menu-label">バーコード登録</span>
-        </button>
-        <button class="action-menu-card consume" data-target="consume-barcode">
-          <span class="action-menu-icon"><span class="material-symbols-rounded">barcode_scanner</span></span>
-          <span class="action-menu-label">バーコード削除</span>
-        </button>
-        <button class="action-menu-card register" data-target="ai">
-          <span class="action-menu-icon"><span class="material-symbols-rounded">photo_camera</span></span>
-          <span class="action-menu-label">AI登録</span>
-        </button>
-        <button class="action-menu-card consume" data-target="consume-ai">
-          <span class="action-menu-icon"><span class="material-symbols-rounded">photo_camera</span></span>
-          <span class="action-menu-label">AI削除</span>
-        </button>
-        <button class="action-menu-card register" data-target="manual">
-          <span class="action-menu-icon"><span class="material-symbols-rounded">edit</span></span>
-          <span class="action-menu-label">手動登録</span>
-        </button>
-        <button class="action-menu-card consume" data-target="consume-manual">
-          <span class="action-menu-icon"><span class="material-symbols-rounded">delete</span></span>
-          <span class="action-menu-label">手動削除</span>
-        </button>
+      <!-- ① 挨拶・日付(表示内容は home.js が設定する) -->
+      <div class="home-greeting">
+        <div class="home-greeting-text">
+          <p class="home-greeting-hello" id="home-greeting">こんにちは</p>
+          <p class="home-greeting-date" id="home-date"></p>
+        </div>
+        <span class="home-greeting-icon material-symbols-rounded">auto_awesome</span>
       </div>
 
-      <div id="add-message" style="margin:14px 0;"></div>
-
-      <!-- 選択した機能がここに直接開く(モード選択・タブ選択なし) -->
-      <div id="action-panel-section" class="card hidden" style="margin-top:8px;">
-        <div class="accordion-panel-header">
-          <h2 id="action-panel-title" style="margin:0;"></h2>
-          <button class="modal-close-btn" id="close-action-panel-btn"><span class="material-symbols-rounded">close</span></button>
-        </div>
-
-        <div class="tab-panel" id="tab-panel-barcode">
-          <div id="scanner-wrap" class="hidden">
-            <div id="reader"></div>
-            <p class="scan-hint">バーコード全体が枠に収まる距離(10〜15cmくらい)で、明るい場所で数秒待ってください</p>
-            <button class="btn-secondary" id="close-scanner-btn"><span class="material-symbols-rounded">close</span> キャンセル</button>
+      <!-- ② メインアクション: 登録・消費の2枚のみ表示。タップで展開し、その中でバーコード/AI/手動を選ぶ -->
+      <div class="action-menu-grid home-main-actions">
+        <details class="home-action-group">
+          <summary class="home-action-card register">
+            <span class="home-action-card-icon material-symbols-rounded">add_circle</span>
+            <span class="home-action-card-text">
+              <span class="home-action-card-title">商品を登録</span>
+              <span class="home-action-card-sub">バーコード・AI・手動から選べます</span>
+            </span>
+            <span class="home-action-card-chevron material-symbols-rounded">expand_more</span>
+          </summary>
+          <div class="home-action-sub-grid" id="register-sub-grid">
+            <button class="action-menu-card register" data-target="barcode">
+              <span class="action-menu-icon"><span class="material-symbols-rounded">barcode_scanner</span></span>
+              <span class="action-menu-label">バーコード</span>
+            </button>
+            <button class="action-menu-card register" data-target="ai">
+              <span class="action-menu-icon"><span class="material-symbols-rounded">photo_camera</span></span>
+              <span class="action-menu-label">AI</span>
+            </button>
+            <button class="action-menu-card register" data-target="manual">
+              <span class="action-menu-icon"><span class="material-symbols-rounded">edit</span></span>
+              <span class="action-menu-label">手動</span>
+            </button>
           </div>
-          <button class="btn-primary" id="scan-btn"><span class="material-symbols-rounded">barcode_scanner</span> スキャンを開始する</button>
-        </div>
 
-        <div class="tab-panel" id="tab-panel-ai">
+          <div class="tab-panel" id="tab-panel-barcode">
+            <div class="accordion-panel-header">
+              <h2 style="margin:0;">バーコードで登録</h2>
+              <button type="button" class="modal-close-btn" id="close-barcode-btn"><span class="material-symbols-rounded">close</span></button>
+            </div>
+            <div id="scanner-wrap" class="hidden">
+              <div id="reader"></div>
+              <p class="scan-hint">バーコード全体が枠に収まる距離(10〜15cmくらい)で、明るい場所で数秒待ってください</p>
+            </div>
+          </div>
+
           <input type="file" accept="image/*" capture="environment" id="photo-input" class="hidden">
-          <button class="btn-primary" id="photo-btn"><span class="material-symbols-rounded">photo_camera</span> 写真を撮影する</button>
+          <button type="button" id="photo-btn" class="hidden">写真を撮影する</button>
 
           <div id="review-section" class="hidden" style="margin-top:16px;">
             <span class="review-badge">AI判定結果</span>
@@ -127,99 +126,156 @@
             <button class="btn-secondary" id="cancel-review-btn"><span class="material-symbols-rounded">close</span> キャンセル</button>
             <div id="review-message"></div>
           </div>
-        </div>
 
-        <div class="tab-panel" id="tab-panel-manual">
-          <label for="item-name">商品名</label>
-          <input type="text" id="item-name" placeholder="例: 牛乳">
-
-          <div class="row2">
-            <div>
-              <label for="item-category">分類</label>
-              <select id="item-category">
-                <option value="食材">食材</option>
-                <option value="日用品">日用品</option>
-              </select>
+          <div class="tab-panel" id="tab-panel-manual">
+            <div class="accordion-panel-header">
+              <h2 style="margin:0;">手動で登録</h2>
+              <button type="button" class="modal-close-btn" id="close-manual-btn"><span class="material-symbols-rounded">close</span></button>
             </div>
-            <div>
-              <label for="item-unit">単位</label>
-              <input type="text" id="item-unit" placeholder="個・本など" value="個">
-              <div id="item-unit-suggestions" class="unit-chip-row"></div>
+            <label for="item-name">商品名</label>
+            <input type="text" id="item-name" placeholder="例: 牛乳">
+
+            <div class="row2">
+              <div>
+                <label for="item-category">分類</label>
+                <select id="item-category">
+                  <option value="食材">食材</option>
+                  <option value="日用品">日用品</option>
+                </select>
+              </div>
+              <div>
+                <label for="item-unit">単位</label>
+                <input type="text" id="item-unit" placeholder="個・本など" value="個">
+                <div id="item-unit-suggestions" class="unit-chip-row"></div>
+              </div>
+            </div>
+
+            <div class="row2">
+              <div>
+                <label for="item-quantity">数量</label>
+                <select id="item-quantity"></select>
+                <input type="number" id="item-quantity-numeric" class="hidden" min="0" step="any" inputmode="decimal" placeholder="例: 500">
+              </div>
+              <div>
+                <label for="item-expiry">消費・賞味期限(任意)</label>
+                <input type="text" id="item-expiry" class="date-display" placeholder="タップして選択" readonly>
+              </div>
+            </div>
+
+            <button class="btn-primary" id="add-item-btn"><span class="material-symbols-rounded">add</span> 登録する</button>
+            <div id="manual-add-message"></div>
+          </div>
+        </details>
+
+        <details class="home-action-group">
+          <summary class="home-action-card consume">
+            <span class="home-action-card-icon material-symbols-rounded">remove_circle</span>
+            <span class="home-action-card-text">
+              <span class="home-action-card-title">商品を消費</span>
+              <span class="home-action-card-sub">バーコード・AI・手動から選べます</span>
+            </span>
+            <span class="home-action-card-chevron material-symbols-rounded">expand_more</span>
+          </summary>
+          <div class="home-action-sub-grid" id="consume-sub-grid">
+            <button class="action-menu-card consume" data-target="consume-barcode">
+              <span class="action-menu-icon"><span class="material-symbols-rounded">barcode_scanner</span></span>
+              <span class="action-menu-label">バーコード</span>
+            </button>
+            <button class="action-menu-card consume" data-target="consume-ai">
+              <span class="action-menu-icon"><span class="material-symbols-rounded">photo_camera</span></span>
+              <span class="action-menu-label">AI</span>
+            </button>
+            <button class="action-menu-card consume" data-target="consume-manual">
+              <span class="action-menu-icon"><span class="material-symbols-rounded">edit</span></span>
+              <span class="action-menu-label">手動</span>
+            </button>
+          </div>
+
+          <div class="tab-panel" id="tab-panel-consume-barcode">
+            <div class="accordion-panel-header">
+              <h2 style="margin:0;">バーコードで削除</h2>
+              <button type="button" class="modal-close-btn" id="close-consume-barcode-btn"><span class="material-symbols-rounded">close</span></button>
+            </div>
+            <div id="consume-scanner-wrap" class="hidden">
+              <div id="consume-reader"></div>
+              <p class="scan-hint">バーコード全体が枠に収まる距離(10〜15cmくらい)で、明るい場所で数秒待ってください</p>
             </div>
           </div>
 
-          <div class="row2">
-            <div>
-              <label for="item-quantity">数量</label>
-              <select id="item-quantity"></select>
-              <input type="number" id="item-quantity-numeric" class="hidden" min="0" step="any" inputmode="decimal" placeholder="例: 500">
-            </div>
-            <div>
-              <label for="item-expiry">消費・賞味期限(任意)</label>
-              <input type="text" id="item-expiry" class="date-display" placeholder="タップして選択" readonly>
-            </div>
-          </div>
-
-          <button class="btn-primary" id="add-item-btn"><span class="material-symbols-rounded">add</span> 登録する</button>
-          <div id="manual-add-message"></div>
-        </div>
-
-        <div class="tab-panel" id="tab-panel-consume-barcode">
-          <div id="consume-scanner-wrap" class="hidden">
-            <div id="consume-reader"></div>
-            <p class="scan-hint">バーコード全体が枠に収まる距離(10〜15cmくらい)で、明るい場所で数秒待ってください</p>
-            <button class="btn-secondary" id="close-consume-scanner-btn"><span class="material-symbols-rounded">close</span> キャンセル</button>
-          </div>
-          <button class="btn-primary" id="consume-scan-btn"><span class="material-symbols-rounded">barcode_scanner</span> スキャンを開始する</button>
-        </div>
-
-        <div class="tab-panel" id="tab-panel-consume-ai">
           <input type="file" accept="image/*" capture="environment" id="consume-photo-input" class="hidden">
-          <button class="btn-primary" id="consume-photo-btn"><span class="material-symbols-rounded">photo_camera</span> 写真を撮影する</button>
-        </div>
+          <button type="button" id="consume-photo-btn" class="hidden">写真を撮影する</button>
 
-        <div class="tab-panel" id="tab-panel-consume-manual">
-          <label for="consume-search">商品を検索</label>
-          <input type="text" id="consume-search" placeholder="商品名で検索(例: 牛乳)">
-          <div id="consume-search-results"></div>
-
-          <div id="manual-consume-review-section" class="hidden" style="margin-top:16px;">
-            <h2 style="margin-top:0;">消費する商品</h2>
-            <div id="manual-consume-review-list"></div>
-            <button class="btn-primary" id="manual-confirm-consume-btn"><span class="material-symbols-rounded">done_all</span> 消費する</button>
-            <div id="manual-consume-message"></div>
+          <!-- バーコード/AIどちらの消費結果もここに共通表示 -->
+          <div id="consume-review-section" class="hidden" style="margin-top:16px;">
+            <span class="review-badge" style="background:rgba(229,72,77,0.1); color:#C4383D;">消費登録</span>
+            <h2 style="margin-top:0;">在庫から消費する商品</h2>
+            <p class="review-note">数量を確認し、必要であれば調整してから確定してください。「すべて消費」で在庫を0にできます。</p>
+            <div id="consume-review-list"></div>
+            <button class="btn-primary" id="confirm-consume-btn"><span class="material-symbols-rounded">done_all</span> 消費する</button>
+            <button class="btn-secondary" id="cancel-consume-btn"><span class="material-symbols-rounded">close</span> キャンセル</button>
           </div>
-        </div>
 
-        <!-- バーコード/AIどちらの消費結果もここに共通表示 -->
-        <div id="consume-review-section" class="hidden" style="margin-top:16px;">
-          <span class="review-badge" style="background:rgba(229,72,77,0.1); color:#C4383D;">消費登録</span>
-          <h2 style="margin-top:0;">在庫から消費する商品</h2>
-          <p class="review-note">数量を確認し、必要であれば調整してから確定してください。「すべて消費」で在庫を0にできます。</p>
-          <div id="consume-review-list"></div>
-          <button class="btn-primary" id="confirm-consume-btn"><span class="material-symbols-rounded">done_all</span> 消費する</button>
-          <button class="btn-secondary" id="cancel-consume-btn"><span class="material-symbols-rounded">close</span> キャンセル</button>
-        </div>
+          <div id="consume-message" style="margin-top:12px;"></div>
 
-        <div id="consume-message" style="margin-top:12px;"></div>
+          <div class="tab-panel" id="tab-panel-consume-manual">
+            <div class="accordion-panel-header">
+              <h2 style="margin:0;">手動で削除</h2>
+              <button type="button" class="modal-close-btn" id="close-consume-manual-btn"><span class="material-symbols-rounded">close</span></button>
+            </div>
+            <label for="consume-search">商品を検索</label>
+            <input type="text" id="consume-search" placeholder="商品名で検索(例: 牛乳)">
+            <div id="consume-search-results"></div>
+
+            <div id="manual-consume-review-section" class="hidden" style="margin-top:16px;">
+              <h2 style="margin-top:0;">消費する商品</h2>
+              <div id="manual-consume-review-list"></div>
+              <button class="btn-primary" id="manual-confirm-consume-btn"><span class="material-symbols-rounded">done_all</span> 消費する</button>
+              <div id="manual-consume-message"></div>
+            </div>
+          </div>
+        </details>
       </div>
 
-      <!-- 今後の拡張予定(レイアウト検討用のプレースホルダー) -->
-      <p class="section-label" style="margin-top:28px;">まもなく使える機能</p>
+      <div id="add-message" style="margin:14px 0;"></div>
+
+      <!-- ③ 賞味期限のお知らせ(現在はダミー表示) -->
+      <p class="section-label" style="margin-top:28px;">賞味期限のお知らせ</p>
+      <div class="card home-notice-card">
+        <div class="home-notice-stats">
+          <div class="home-notice-stat expired">
+            <span class="material-symbols-rounded home-notice-stat-icon">error</span>
+            <span class="home-notice-stat-value">0<span class="home-notice-stat-unit">件</span></span>
+            <span class="home-notice-stat-label">期限切れ</span>
+          </div>
+          <div class="home-notice-stat soon">
+            <span class="material-symbols-rounded home-notice-stat-icon">schedule</span>
+            <span class="home-notice-stat-value">0<span class="home-notice-stat-unit">件</span></span>
+            <span class="home-notice-stat-label">3日以内</span>
+          </div>
+          <div class="home-notice-stat low">
+            <span class="material-symbols-rounded home-notice-stat-icon">inventory_2</span>
+            <span class="home-notice-stat-value">0<span class="home-notice-stat-unit">件</span></span>
+            <span class="home-notice-stat-label">在庫少なめ</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ④ 今後追加予定(レイアウト検討用のプレースホルダー) -->
+      <p class="section-label" style="margin-top:28px;">今後追加予定</p>
       <div class="insight-grid">
         <div class="insight-card muted">
-          <span class="insight-icon"><span class="material-symbols-rounded">schedule</span></span>
-          <span class="insight-title">期限が近い食材</span>
+          <span class="insight-icon"><span class="material-symbols-rounded">auto_awesome</span></span>
+          <span class="insight-title">AIレシピ</span>
           <span class="insight-desc">近日公開</span>
         </div>
         <div class="insight-card muted">
-          <span class="insight-icon"><span class="material-symbols-rounded">restaurant</span></span>
-          <span class="insight-title">おすすめレシピ</span>
+          <span class="insight-icon"><span class="material-symbols-rounded">groups</span></span>
+          <span class="insight-title">家族共有</span>
           <span class="insight-desc">近日公開</span>
         </div>
         <div class="insight-card muted">
-          <span class="insight-icon"><span class="material-symbols-rounded">bar_chart</span></span>
-          <span class="insight-title">在庫サマリー</span>
+          <span class="insight-icon"><span class="material-symbols-rounded">history</span></span>
+          <span class="insight-title">購入履歴</span>
           <span class="insight-desc">近日公開</span>
         </div>
       </div>
@@ -287,6 +343,136 @@
     </div>
   </div>
 </div>
+
+<!-- 商品マスタ 詳細/編集シート(将来の商品情報ページの土台) -->
+<div id="product-detail-overlay" class="hidden">
+  <div id="product-detail-sheet">
+    <div class="product-detail-header">
+      <h2>商品の詳細</h2>
+      <button type="button" class="modal-close-btn" id="product-detail-close-btn"><span class="material-symbols-rounded">close</span></button>
+    </div>
+
+    <!-- 在庫設定(items.low_stock_threshold)。商品属性の有無に関わらず常に表示する -->
+    <div class="product-detail-section">
+      <div class="product-detail-section-header">
+        <h3>在庫設定</h3>
+      </div>
+      <div class="product-detail-attr-row">
+        <span class="product-detail-attr-label">最低数量</span>
+        <input type="number" id="pd-threshold-input" class="pd-threshold-input" min="0" step="1" inputmode="numeric">
+      </div>
+    </div>
+
+    <!-- 商品属性が未作成の商品向け -->
+    <div id="product-detail-empty" class="hidden">
+      <p class="product-detail-empty-text">この商品にはまだ商品属性情報がありません。</p>
+      <button type="button" class="btn-primary" id="product-detail-create-btn">
+        <span class="material-symbols-rounded">auto_awesome</span> 商品属性を作成
+      </button>
+      <div id="product-detail-create-message"></div>
+    </div>
+
+    <!-- 作成/再生成中のローディング表示 -->
+    <div id="product-detail-loading" class="hidden">
+      <p class="product-detail-loading-text">商品属性を作成しています…</p>
+    </div>
+
+    <!-- 表示モード -->
+    <div id="product-detail-view" class="hidden">
+      <div class="product-detail-basic">
+        <span class="product-detail-icon" id="pd-icon">📦</span>
+        <div class="product-detail-basic-text">
+          <p class="product-detail-name" id="pd-item-name"></p>
+          <p class="product-detail-canonical" id="pd-canonical-name"></p>
+        </div>
+      </div>
+
+      <div class="product-detail-section">
+        <div class="product-detail-section-header">
+          <h3>商品属性</h3>
+          <button type="button" class="btn-secondary product-detail-action-btn" id="product-detail-edit-btn">
+            <span class="material-symbols-rounded">edit</span> 編集
+          </button>
+        </div>
+        <div class="product-detail-attr-row">
+          <span class="product-detail-attr-label">種別</span>
+          <span class="product-detail-attr-value" id="pd-type"></span>
+        </div>
+        <div class="product-detail-attr-row">
+          <span class="product-detail-attr-label">アイコン</span>
+          <span class="product-detail-attr-value" id="pd-icon-value"></span>
+          <span class="product-detail-source-badge" id="pd-icon-badge"></span>
+        </div>
+        <div class="product-detail-attr-row">
+          <span class="product-detail-attr-label">カテゴリー</span>
+          <span class="product-detail-attr-value" id="pd-category"></span>
+          <span class="product-detail-source-badge" id="pd-category-badge"></span>
+        </div>
+        <div class="product-detail-attr-row">
+          <span class="product-detail-attr-label">サブカテゴリー</span>
+          <span class="product-detail-attr-value" id="pd-sub-category"></span>
+          <span class="product-detail-source-badge" id="pd-sub-category-badge"></span>
+        </div>
+        <div class="product-detail-attr-row">
+          <span class="product-detail-attr-label">保管場所</span>
+          <span class="product-detail-attr-value" id="pd-storage"></span>
+          <span class="product-detail-source-badge" id="pd-storage-badge"></span>
+        </div>
+        <div class="product-detail-attr-row">
+          <span class="product-detail-attr-label">用途</span>
+          <span class="product-detail-attr-value" id="pd-usage"></span>
+          <span class="product-detail-source-badge" id="pd-usage-badge"></span>
+        </div>
+      </div>
+
+      <div class="product-detail-section">
+        <div class="product-detail-section-header">
+          <h3>検索キーワード</h3>
+          <span class="product-detail-source-badge" id="pd-keywords-badge"></span>
+        </div>
+        <div class="product-detail-keywords" id="pd-keywords"></div>
+      </div>
+
+      <!-- 将来の拡張予定(メーカー・ブランド・JANコード・商品画像・栄養情報・
+           アレルゲン・リサイクル区分・おすすめレシピ・おすすめ商品・統計情報など)は、
+           ここに product-detail-section を追加していく想定。今回はレイアウトの土台のみ。 -->
+    </div>
+
+    <!-- 編集モード -->
+    <div id="product-detail-edit" class="hidden">
+      <label for="pd-edit-icon">アイコン</label>
+      <input type="text" id="pd-edit-icon" maxlength="8" placeholder="絵文字を入力(例: 🍫)">
+
+      <label for="pd-edit-category">カテゴリー</label>
+      <select id="pd-edit-category"></select>
+
+      <label for="pd-edit-sub-category">サブカテゴリー</label>
+      <input type="text" id="pd-edit-sub-category" placeholder="例: チョコレート">
+
+      <label for="pd-edit-storage">保管場所</label>
+      <select id="pd-edit-storage"></select>
+
+      <label for="pd-edit-usage">用途</label>
+      <select id="pd-edit-usage"></select>
+
+      <label for="pd-edit-keyword-input">検索キーワード</label>
+      <div class="product-detail-keywords" id="pd-edit-keywords"></div>
+      <input type="text" id="pd-edit-keyword-input" placeholder="キーワードを入力してEnterで追加">
+
+      <button type="button" class="btn-primary" id="product-detail-save-btn">保存</button>
+      <button type="button" class="btn-secondary" id="product-detail-cancel-btn">キャンセル</button>
+      <div id="product-detail-save-message"></div>
+    </div>
+
+    <!-- 商品(在庫の全ロットを含む)の削除。商品属性の有無に関わらず常に表示する -->
+    <button type="button" class="btn-secondary" id="product-detail-delete-btn" style="margin-top:20px; color:var(--danger); border-color:var(--danger);">
+      <span class="material-symbols-rounded">delete</span> この商品を削除
+    </button>
+  </div>
+</div>
+
+<!-- 保存完了などを知らせる汎用トースト -->
+<div id="toast" class="hidden"></div>
 
 <script type="module" src="js/main.js"></script>
 

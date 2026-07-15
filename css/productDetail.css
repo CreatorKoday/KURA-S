@@ -1,0 +1,178 @@
+/* ==========================================================
+   KURA:S デザインシステム ― productDetail.css
+   商品マスタ 詳細/編集シート専用(将来の商品情報ページの土台)
+   ========================================================== */
+
+#product-detail-overlay {
+  position: fixed; inset: 0;
+  background: rgba(20, 14, 45, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: flex-end; justify-content: center;
+  z-index: 1000;
+  animation: fadeIn .2s ease;
+}
+
+#product-detail-overlay.hidden { display: none; }
+
+#product-detail-sheet {
+  background: var(--surface);
+  border-radius: 28px 28px 0 0;
+  width: 100%; max-width: 460px;
+  max-height: 88vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px 20px calc(28px + env(safe-area-inset-bottom));
+  box-shadow: 0 -20px 50px rgba(25,17,66,0.2);
+  animation: fadeSlideIn .25s ease;
+}
+
+.product-detail-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 0 6px;
+  position: sticky; top: 0;
+  background: var(--surface);
+  z-index: 1;
+}
+
+.product-detail-header h2 {
+  margin: 0;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 19px; font-weight: 700; color: var(--text);
+}
+
+.product-detail-basic {
+  display: flex; align-items: center; gap: 14px;
+  padding: 10px 0 18px;
+}
+
+.product-detail-icon {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px;
+  background: var(--primary-soft);
+  flex-shrink: 0;
+}
+
+.product-detail-basic-text { min-width: 0; }
+
+.product-detail-name {
+  margin: 0;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 17px; font-weight: 700; color: var(--text);
+}
+
+.product-detail-canonical {
+  margin: 4px 0 0;
+  font-size: 12px; color: var(--text-tertiary);
+}
+
+.product-detail-section {
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+}
+
+.product-detail-section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.product-detail-section-header h3 {
+  margin: 0;
+  font-size: 12px; font-weight: 700; color: var(--text-secondary);
+  letter-spacing: 0.06em; text-transform: uppercase;
+}
+
+.product-detail-action-btn {
+  width: auto; height: auto;
+  padding: 6px 12px; margin: 0;
+  font-size: 12px;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+
+.product-detail-action-btn .material-symbols-rounded { font-size: 15px; }
+
+.product-detail-attr-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 0;
+}
+
+.product-detail-attr-label {
+  width: 84px; flex-shrink: 0;
+  font-size: 12px; color: var(--text-tertiary);
+}
+
+.product-detail-attr-value {
+  flex: 1; min-width: 0;
+  font-size: 14px; font-weight: 600; color: var(--text);
+}
+
+.pd-threshold-input {
+  width: 72px; height: 34px;
+  padding: 0 8px; font-size: 13px; border-radius: 8px;
+  margin: 0;
+}
+
+.product-detail-source-badge {
+  flex-shrink: 0;
+  font-size: 10px; font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
+.product-detail-source-badge.ai { background: var(--primary-soft); color: var(--primary); }
+
+.product-detail-source-badge.manual { background: rgba(47,179,128,0.14); color: var(--success); }
+
+.product-detail-keywords {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+
+.product-detail-keyword-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--bg-1); color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 5px 10px;
+  font-size: 12px; font-weight: 600;
+}
+
+.product-detail-keyword-chip .remove {
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px;
+  font-size: 13px; line-height: 1;
+  color: var(--text-tertiary);
+}
+
+.product-detail-keyword-chip .remove:hover { color: var(--danger); }
+
+#product-detail-empty,
+#product-detail-loading {
+  padding: 28px 0 12px;
+  text-align: center;
+}
+
+.product-detail-empty-text,
+.product-detail-loading-text {
+  font-size: 13px; color: var(--text-secondary);
+  margin: 0 0 16px;
+}
+
+/* トースト(汎用・他画面からの再利用も想定) */
+#toast {
+  position: fixed;
+  left: 50%; bottom: 100px;
+  transform: translateX(-50%);
+  background: var(--text);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: var(--radius-pill);
+  font-size: 13px; font-weight: 600;
+  box-shadow: var(--shadow-3);
+  z-index: 1200;
+  animation: fadeIn .2s ease;
+}
+
+#toast.hidden { display: none; }

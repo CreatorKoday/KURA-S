@@ -4,7 +4,7 @@
 
 import { supabaseClient } from "./config.js";
 import { addMessageBox } from "./elements.js";
-import { showMessage } from "./utils.js";
+import { showMessage, withTotalQuantity } from "./utils.js";
 import { updateUnitSuggestions } from "./units.js";
 import { showConsumeReview } from "./consume.js";
 
@@ -17,12 +17,8 @@ export function resetCurrentBarcodeValue() {
 let scanMode = "register"; // "register" または "consume"
 let activeScannerWrapId = "scanner-wrap";
 
-document.getElementById("scan-btn").addEventListener("click", () => startScanner("register"));
-document.getElementById("close-scanner-btn").addEventListener("click", stopScanner);
-document.getElementById("consume-scan-btn").addEventListener("click", () => startScanner("consume"));
-document.getElementById("close-consume-scanner-btn").addEventListener("click", stopScanner);
-
-async function startScanner(mode) {
+// home.js がバーコードボタン選択時に startScanner を、×ボタン押下時に stopScanner を直接呼び出す
+export async function startScanner(mode) {
   scanMode = mode;
   activeScannerWrapId = mode === "consume" ? "consume-scanner-wrap" : "scanner-wrap";
   const readerId = mode === "consume" ? "consume-reader" : "reader";
@@ -58,7 +54,7 @@ async function startScanner(mode) {
   }
 }
 
-async function stopScanner() {
+export async function stopScanner() {
   if (html5QrCode) {
     try { await html5QrCode.stop(); } catch (e) {}
     try { html5QrCode.clear(); } catch (e) {}
@@ -103,13 +99,13 @@ async function lookupBarcode(barcode) {
 async function handleConsumeBarcode(barcode) {
   const { data: byBarcode, error: barcodeError } = await supabaseClient
     .from("items")
-    .select("id, name, unit, quantity")
+    .select("id, name, unit, item_lots(quantity)")
     .eq("barcode", barcode)
     .limit(5);
 
   if (!barcodeError && byBarcode && byBarcode.length > 0) {
     showMessage(addMessageBox, "", false);
-    showConsumeReview(byBarcode, "consume-review-list", "consume-review-section");
+    showConsumeReview(withTotalQuantity(byBarcode), "consume-review-list", "consume-review-section");
     return;
   }
 
@@ -121,10 +117,10 @@ async function handleConsumeBarcode(barcode) {
       const name = data.product.product_name_ja || data.product.product_name || "";
       if (name) {
         const { data: byName } = await supabaseClient
-          .from("items").select("id, name, unit, quantity").ilike("name", "%" + name + "%").limit(5);
+          .from("items").select("id, name, unit, item_lots(quantity)").ilike("name", "%" + name + "%").limit(5);
         if (byName && byName.length > 0) {
           showMessage(addMessageBox, "", false);
-          showConsumeReview(byName, "consume-review-list", "consume-review-section");
+          showConsumeReview(withTotalQuantity(byName), "consume-review-list", "consume-review-section");
           return;
         }
       }

@@ -1,13 +1,145 @@
 /* ==========================================================
    KURA:S デザインシステム ― home.css
-   ホーム画面専用(アクションメニュー・今後の機能プレースホルダー)
+   ホーム画面専用(挨拶・メインアクション・お知らせ・今後の機能プレースホルダー)
    ========================================================== */
 
+/* --- ① 挨拶・日付 --- */
+.home-greeting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 22px;
+  padding: 0 2px;
+}
+
+.home-greeting-hello {
+  margin: 0;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-weight: 800;
+  font-size: 21px;
+  color: var(--text);
+  letter-spacing: 0.01em;
+}
+
+.home-greeting-date {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  letter-spacing: 0.04em;
+}
+
+.home-greeting-icon {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--gradient-primary);
+  color: #fff;
+  font-size: 22px;
+  box-shadow: 0 6px 16px rgba(108,79,246,0.28);
+}
+
+/* --- ② メインアクション(登録・消費の2枚。押すとバーコード/AI/手動を選べる) --- */
 .action-menu-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: 1fr;
+  gap: 14px;
 }
+
+.home-action-group summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.home-action-group summary::-webkit-details-marker,
+.home-action-group summary::marker {
+  display: none;
+  content: "";
+}
+
+.home-action-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 26px;
+  padding: 20px;
+  box-shadow: var(--shadow-1), var(--shadow-2);
+  animation: fadeSlideIn .35s ease;
+  transition: box-shadow .2s ease, border-color .2s ease, transform .15s ease;
+}
+
+.home-action-card:active { transform: scale(0.98); }
+
+.home-action-group[open] .home-action-card {
+  border-color: var(--primary-light);
+  box-shadow: var(--shadow-1), 0 12px 30px rgba(108,79,246,0.18);
+}
+
+.home-action-card-icon {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--gradient-primary);
+  color: #fff;
+  font-size: 26px;
+  box-shadow: 0 6px 16px rgba(108,79,246,0.28);
+}
+
+.home-action-card.consume .home-action-card-icon {
+  background: var(--gradient-consume);
+  box-shadow: 0 6px 16px rgba(229,160,59,0.28);
+}
+
+.home-action-card-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.home-action-card-title {
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.home-action-card-sub {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.home-action-card-chevron {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  font-size: 22px;
+  transition: transform .2s ease;
+}
+
+.home-action-group[open] .home-action-card-chevron { transform: rotate(180deg); color: var(--primary); }
+
+.home-action-sub-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.home-action-sub-grid .action-menu-card { padding: 16px 6px; gap: 8px; }
+
+.home-action-sub-grid .action-menu-icon { width: 40px; height: 40px; }
+
+.home-action-sub-grid .action-menu-icon .material-symbols-rounded { font-size: 18px; }
+
+.home-action-sub-grid .action-menu-label { font-size: 11px; }
+
+/* 手動フォーム/検索欄をその場で差し替え表示する際の余白(サブ選択と同じ間隔) */
+.home-action-group .tab-panel { margin-top: 10px; }
 
 .action-menu-card {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -41,6 +173,53 @@
 
 .action-menu-label { font-size: 13px; font-weight: 600; color: var(--text); }
 
+/* --- ③ 賞味期限のお知らせ --- */
+.home-notice-card { padding: 20px; }
+
+.home-notice-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.home-notice-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 6px;
+  border-radius: var(--radius-md);
+  background: var(--bg-1);
+}
+
+.home-notice-stat-icon { font-size: 18px; color: var(--text-tertiary); }
+
+.home-notice-stat-value {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.home-notice-stat-unit {
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 1px;
+  color: var(--text-tertiary);
+}
+
+.home-notice-stat-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.home-notice-stat.expired .home-notice-stat-icon { color: var(--danger); }
+
+.home-notice-stat.soon .home-notice-stat-icon { color: var(--warning); }
+
+.home-notice-stat.low .home-notice-stat-icon { color: var(--primary); }
+
+/* --- ④ 今後追加予定 --- */
 .insight-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

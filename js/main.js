@@ -14,6 +14,7 @@ import "./units.js";
 
 import "./shopping.js";
 import "./items.js";
+import "./productDetail.js";
 
 import "./aiPhoto.js";
 import "./barcode.js";

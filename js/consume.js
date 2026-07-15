@@ -4,7 +4,7 @@
 
 import { supabaseClient } from "./config.js";
 import { addMessageBox, consumeMessageBox, manualConsumeMessageBox } from "./elements.js";
-import { showMessage, escapeHtml } from "./utils.js";
+import { showMessage, escapeHtml, withTotalQuantity } from "./utils.js";
 import { syncShoppingListForItem, loadShoppingList } from "./shopping.js";
 import { loadItems } from "./items.js";
 import { fileToBase64, identifyProductsWithAI } from "./aiPhoto.js";
@@ -45,6 +45,43 @@ document.addEventListener("click", (e) => {
   card.querySelector(".consume-quantity").value = card.dataset.fullQuantity;
 });
 
+// 指定した商品(itemId)から consumeQty 分を、賞味期限が近いロットから順に減らす。
+// ロットの数量が0以下になったら、そのロットは削除する(他のロットには影響しない)。
+async function consumeFromLots(itemId, consumeQty) {
+  const { data: lots, error } = await supabaseClient
+    .from("item_lots")
+    .select("id, quantity, expiry_date")
+    .eq("item_id", itemId);
+  if (error) { console.error("在庫ロットの取得に失敗:", error); return false; }
+
+  const sorted = [...(lots || [])].sort((a, b) => {
+    if (a.expiry_date && b.expiry_date) return a.expiry_date < b.expiry_date ? -1 : a.expiry_date > b.expiry_date ? 1 : 0;
+    if (a.expiry_date && !b.expiry_date) return -1;
+    if (!a.expiry_date && b.expiry_date) return 1;
+    return 0;
+  });
+
+  let remaining = consumeQty;
+  for (const lot of sorted) {
+    if (remaining <= 0) break;
+    const lotQty = Number(lot.quantity);
+    const consumeFromThis = Math.min(lotQty, remaining);
+    const newQty = lotQty - consumeFromThis;
+
+    if (newQty <= 0) {
+      await supabaseClient.from("item_lots").delete().eq("id", lot.id);
+    } else {
+      await supabaseClient
+        .from("item_lots")
+        .update({ quantity: newQty, updated_at: new Date().toISOString() })
+        .eq("id", lot.id);
+    }
+    remaining -= consumeFromThis;
+  }
+
+  return true;
+}
+
 async function confirmConsume(containerId, messageBoxEl, onDone) {
   const container = document.getElementById(containerId);
   const cards = container.querySelectorAll(".consume-card");
@@ -56,18 +93,12 @@ async function confirmConsume(containerId, messageBoxEl, onDone) {
   let count = 0;
   for (const card of cards) {
     const id = card.dataset.itemId;
-    const fullQty = Number(card.dataset.fullQuantity);
     const consumeQty = Number(card.querySelector(".consume-quantity").value) || 0;
-    const newQty = Math.max(0, fullQty - consumeQty);
-    const { error } = await supabaseClient
-      .from("items")
-      .update({ quantity: newQty, updated_at: new Date().toISOString() })
-      .eq("id", id);
-    if (!error) {
+    if (consumeQty <= 0) continue;
+    const ok = await consumeFromLots(id, consumeQty);
+    if (ok) {
       await syncShoppingListForItem(id);
       count++;
-    } else {
-      console.error("消費処理に失敗:", error);
     }
   }
 
@@ -116,8 +147,8 @@ document.getElementById("consume-photo-input").addEventListener("change", async 
       const cleanName = (d.name || "").trim();
       if (!cleanName) continue;
       const { data: found } = await supabaseClient
-        .from("items").select("id, name, unit, quantity").ilike("name", "%" + cleanName + "%").limit(3);
-      (found || []).forEach(item => {
+        .from("items").select("id, name, unit, item_lots(quantity)").ilike("name", "%" + cleanName + "%").limit(3);
+      withTotalQuantity(found).forEach(item => {
         if (!seenIds.has(item.id)) {
           seenIds.add(item.id);
           matched.push(item);
@@ -150,7 +181,7 @@ document.getElementById("consume-search").addEventListener("input", async (e) =>
   }
   const { data, error } = await supabaseClient
     .from("items")
-    .select("id, name, unit, quantity")
+    .select("id, name, unit, item_lots(quantity)")
     .ilike("name", "%" + term + "%")
     .order("name")
     .limit(10);
@@ -160,7 +191,7 @@ document.getElementById("consume-search").addEventListener("input", async (e) =>
     return;
   }
 
-  resultsEl.innerHTML = data.map(item => `
+  resultsEl.innerHTML = withTotalQuantity(data).map(item => `
     <div class="shopping-card manual search-result-row" style="cursor:pointer;"
       data-id="${item.id}" data-name="${escapeHtml(item.name)}" data-unit="${escapeHtml(item.unit)}" data-quantity="${item.quantity}">
       <div class="shopping-info">

@@ -8,17 +8,27 @@ import { showMessage, escapeHtml, fillQuantitySelect } from "./utils.js";
 
 fillQuantitySelect(document.getElementById("shopping-quantity"), 1, 30, 1);
 
-// 在庫の数量としきい値を見て、買い物リストへの追加/削除を自動で行う
+// 在庫ロットの合計数量としきい値を見て、買い物リストへの追加/削除を自動で行う
 export async function syncShoppingListForItem(itemId) {
   const { data: item, error: itemError } = await supabaseClient
     .from("items")
-    .select("id, name, quantity, low_stock_threshold")
+    .select("id, name, low_stock_threshold")
     .eq("id", itemId)
     .single();
   if (itemError || !item) {
     console.error("商品情報の取得に失敗(買い物リスト同期):", itemError);
     return;
   }
+
+  const { data: lots, error: lotsError } = await supabaseClient
+    .from("item_lots")
+    .select("quantity")
+    .eq("item_id", itemId);
+  if (lotsError) {
+    console.error("在庫ロットの取得に失敗(買い物リスト同期):", lotsError);
+    return;
+  }
+  const totalQuantity = (lots || []).reduce((sum, l) => sum + Number(l.quantity), 0);
 
   const { data: existingList, error: findError } = await supabaseClient
     .from("shopping_list")
@@ -33,7 +43,7 @@ export async function syncShoppingListForItem(itemId) {
   }
   const existing = existingList && existingList.length > 0 ? existingList[0] : null;
 
-  const isLow = Number(item.quantity) <= Number(item.low_stock_threshold);
+  const isLow = totalQuantity <= Number(item.low_stock_threshold);
 
   if (isLow && !existing) {
     const { error: insertError } = await supabaseClient.from("shopping_list").insert({
@@ -114,12 +124,14 @@ async function markPurchased(shoppingId, itemId, quantityNeeded) {
   }
 
   if (itemId) {
-    const { data: item } = await supabaseClient.from("items").select("quantity").eq("id", itemId).single();
-    if (item) {
-      await supabaseClient
-        .from("items")
-        .update({ quantity: Number(item.quantity) + Number(quantityNeeded), updated_at: new Date().toISOString() })
-        .eq("id", itemId);
+    // 購入分は賞味期限未設定の新しいロットとして追加する
+    const { error: insertError } = await supabaseClient
+      .from("item_lots")
+      .insert({ item_id: itemId, quantity: Number(quantityNeeded), expiry_date: null });
+    if (insertError) {
+      console.error("在庫ロットの追加に失敗:", insertError);
+    } else {
+      await syncShoppingListForItem(itemId);
     }
   }
 
