@@ -9,7 +9,8 @@
   position: fixed; inset: 0; background: rgba(20, 14, 45, 0.45);
   backdrop-filter: blur(4px);
   display: flex; align-items: center; justify-content: center;
-  z-index: 1000; padding: 20px;
+  /* 商品詳細・買い物リストのシート(z-index:1000)より必ず手前に表示する */
+  z-index: 1100; padding: 20px;
   animation: fadeIn .2s ease;
 }
 

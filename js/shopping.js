@@ -80,17 +80,42 @@ function renderShoppingList(rows) {
 
   shoppingListEl.innerHTML = rows.map(row => `
     <div class="shopping-card ${row.item_id ? "" : "manual"}">
-      <button class="check-btn" data-action="mark-purchased" data-id="${row.id}" data-item-id="${row.item_id || ""}" data-quantity="${row.quantity_needed}"><i data-lucide="check"></i></button>
+      <button class="check-btn" data-action="mark-purchased" data-id="${row.id}" data-item-id="${row.item_id || ""}" data-quantity="${row.quantity_needed}" data-name="${escapeHtml(row.name)}"><span class="material-symbols-rounded">check</span></button>
       <div class="shopping-info">
         <div class="shopping-name">${escapeHtml(row.name)}</div>
         <div class="shopping-meta">数量 ${row.quantity_needed} ・ ${row.item_id ? "在庫連動" : "自由入力"}</div>
       </div>
-      <button class="del-btn" data-action="remove-shopping-item" data-id="${row.id}"><i data-lucide="x"></i></button>
+      <button type="button" class="shopping-edit-btn" data-action="edit-shopping-item"
+        data-id="${row.id}" data-name="${escapeHtml(row.name)}" data-quantity="${row.quantity_needed}" aria-label="編集">
+        <span class="material-symbols-rounded">edit</span>
+      </button>
+      <button class="del-btn" data-action="remove-shopping-item" data-id="${row.id}"><span class="material-symbols-rounded">delete</span></button>
     </div>
   `).join("");
 
-  if (window.lucide) lucide.createIcons();
 }
+
+// 編集中の買い物リストID(nullなら新規追加モード)。上部フォームを編集にも使い回す。
+let editingShoppingId = null;
+
+function resetShoppingForm() {
+  editingShoppingId = null;
+  document.getElementById("shopping-name").value = "";
+  document.getElementById("shopping-quantity").value = "1";
+  document.getElementById("add-shopping-btn").innerHTML = '<span class="material-symbols-rounded">add</span> 追加';
+  document.getElementById("cancel-edit-shopping-btn").classList.add("hidden");
+}
+
+function startEditShoppingItem(id, name, quantity) {
+  editingShoppingId = id;
+  document.getElementById("shopping-name").value = name;
+  document.getElementById("shopping-quantity").value = String(Math.min(30, Math.max(1, Math.round(quantity) || 1)));
+  document.getElementById("add-shopping-btn").innerHTML = '<span class="material-symbols-rounded">check</span> 更新する';
+  document.getElementById("cancel-edit-shopping-btn").classList.remove("hidden");
+  document.getElementById("shopping-name").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+document.getElementById("cancel-edit-shopping-btn").addEventListener("click", resetShoppingForm);
 
 document.getElementById("add-shopping-btn").addEventListener("click", async () => {
   const name = document.getElementById("shopping-name").value.trim();
@@ -98,6 +123,23 @@ document.getElementById("add-shopping-btn").addEventListener("click", async () =
 
   if (!name) {
     showMessage(shoppingMessageBox, "商品名を入力してください", true);
+    return;
+  }
+
+  if (editingShoppingId) {
+    const { error } = await supabaseClient
+      .from("shopping_list")
+      .update({ name, quantity_needed: quantity })
+      .eq("id", editingShoppingId);
+
+    if (error) {
+      showMessage(shoppingMessageBox, "更新エラー: " + error.message, true);
+      return;
+    }
+
+    showMessage(shoppingMessageBox, "更新しました", false);
+    resetShoppingForm();
+    loadShoppingList();
     return;
   }
 
@@ -111,46 +153,26 @@ document.getElementById("add-shopping-btn").addEventListener("click", async () =
   }
 
   showMessage(shoppingMessageBox, "追加しました", false);
-  document.getElementById("shopping-name").value = "";
-  document.getElementById("shopping-quantity").value = "1";
+  resetShoppingForm();
   loadShoppingList();
 });
-
-async function markPurchased(shoppingId, itemId, quantityNeeded) {
-  const { error } = await supabaseClient.from("shopping_list").delete().eq("id", shoppingId);
-  if (error) {
-    console.error("買い物リストの更新に失敗:", error);
-    return;
-  }
-
-  if (itemId) {
-    // 購入分は賞味期限未設定の新しいロットとして追加する
-    const { error: insertError } = await supabaseClient
-      .from("item_lots")
-      .insert({ item_id: itemId, quantity: Number(quantityNeeded), expiry_date: null });
-    if (insertError) {
-      console.error("在庫ロットの追加に失敗:", insertError);
-    } else {
-      await syncShoppingListForItem(itemId);
-    }
-  }
-
-  loadShoppingList();
-}
 
 async function removeShoppingItem(id) {
   if (!confirm("このリストの項目を削除しますか?")) return;
   const { error } = await supabaseClient.from("shopping_list").delete().eq("id", id);
-  if (!error) loadShoppingList();
+  if (!error) {
+    if (editingShoppingId === id) resetShoppingForm();
+    loadShoppingList();
+  }
 }
+
+// 「購入済み」(mark-purchased)は js/shoppingPurchase.js が独自に監視し、
+// 在庫登録シートを開く(このファイルからは直接呼び出さない)
 
 // カード内のボタンはloadShoppingList()のたびに再生成されるため、shoppingListElへの委譲で拾う
 shoppingListEl.addEventListener("click", (e) => {
-  const purchaseBtn = e.target.closest('[data-action="mark-purchased"]');
-  if (purchaseBtn) {
-    markPurchased(purchaseBtn.dataset.id, purchaseBtn.dataset.itemId || null, Number(purchaseBtn.dataset.quantity));
-    return;
-  }
   const removeBtn = e.target.closest('[data-action="remove-shopping-item"]');
-  if (removeBtn) removeShoppingItem(removeBtn.dataset.id);
+  if (removeBtn) { removeShoppingItem(removeBtn.dataset.id); return; }
+  const editBtn = e.target.closest('[data-action="edit-shopping-item"]');
+  if (editBtn) startEditShoppingItem(editBtn.dataset.id, editBtn.dataset.name, Number(editBtn.dataset.quantity));
 });

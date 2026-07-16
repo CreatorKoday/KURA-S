@@ -27,6 +27,7 @@
 <link rel="stylesheet" href="css/shopping.css">
 <link rel="stylesheet" href="css/calendar.css">
 <link rel="stylesheet" href="css/productDetail.css">
+<link rel="stylesheet" href="css/shoppingPurchase.css">
 </head>
 <body>
 
@@ -110,7 +111,7 @@
             </div>
             <div id="scanner-wrap" class="hidden">
               <div id="reader"></div>
-              <p class="scan-hint">バーコード全体が枠に収まる距離(10〜15cmくらい)で、明るい場所で数秒待ってください</p>
+              <p class="scan-hint">ピントが合う距離(15cmほど離す)で、バーコードを横長の枠に収めてください</p>
             </div>
           </div>
 
@@ -198,7 +199,7 @@
             </div>
             <div id="consume-scanner-wrap" class="hidden">
               <div id="consume-reader"></div>
-              <p class="scan-hint">バーコード全体が枠に収まる距離(10〜15cmくらい)で、明るい場所で数秒待ってください</p>
+              <p class="scan-hint">ピントが合う距離(15cmほど離す)で、バーコードを横長の枠に収めてください</p>
             </div>
           </div>
 
@@ -295,6 +296,9 @@
             <button class="btn-primary" id="add-shopping-btn" style="margin-top:12px;"><span class="material-symbols-rounded">add</span> 追加</button>
           </div>
         </div>
+        <button type="button" class="btn-secondary hidden" id="cancel-edit-shopping-btn" style="margin-top:12px;">
+          <span class="material-symbols-rounded">close</span> 編集をキャンセル
+        </button>
         <div id="shopping-message"></div>
       </div>
       <div id="shopping-list"></div>
@@ -471,6 +475,70 @@
     <button type="button" class="btn-secondary" id="product-detail-delete-btn" style="margin-top:20px; color:var(--danger); border-color:var(--danger);">
       <span class="material-symbols-rounded">delete</span> この商品を削除
     </button>
+  </div>
+</div>
+
+<!-- 買い物リストの「購入済み」→在庫登録シート -->
+<div id="shopping-purchase-overlay" class="hidden">
+  <div id="shopping-purchase-sheet">
+    <div class="product-detail-header">
+      <h2 id="shopping-purchase-title">在庫に登録</h2>
+      <button type="button" class="modal-close-btn" id="shopping-purchase-close-btn"><span class="material-symbols-rounded">close</span></button>
+    </div>
+
+    <!-- 既存商品: 数量・期限のみ入力 -->
+    <div id="shopping-purchase-known" class="hidden">
+      <p class="review-note" id="shopping-purchase-known-name"></p>
+      <div class="row2">
+        <div>
+          <label for="shopping-purchase-known-quantity">数量</label>
+          <select class="review-quantity" id="shopping-purchase-known-quantity"></select>
+          <input type="number" class="review-quantity-numeric hidden" id="shopping-purchase-known-quantity-numeric" min="0" step="any" inputmode="decimal" placeholder="例: 500">
+        </div>
+        <div>
+          <label for="shopping-purchase-known-expiry">消費・賞味期限(任意)</label>
+          <input type="text" class="date-display" id="shopping-purchase-known-expiry" readonly placeholder="タップして選択">
+        </div>
+      </div>
+      <button type="button" class="btn-primary" id="shopping-purchase-known-submit-btn"><span class="material-symbols-rounded">check</span> 在庫に追加する</button>
+      <div id="shopping-purchase-known-message"></div>
+    </div>
+
+    <!-- 未登録商品: 手動登録と同じ入力項目 -->
+    <div id="shopping-purchase-new" class="hidden">
+      <label for="shopping-purchase-new-name">商品名</label>
+      <input type="text" id="shopping-purchase-new-name">
+
+      <div class="row2">
+        <div>
+          <label for="shopping-purchase-new-category">分類</label>
+          <select id="shopping-purchase-new-category">
+            <option value="食材">食材</option>
+            <option value="日用品">日用品</option>
+          </select>
+        </div>
+        <div>
+          <label for="shopping-purchase-new-unit">単位</label>
+          <input type="text" class="review-unit" id="shopping-purchase-new-unit" value="個">
+          <div id="shopping-purchase-new-unit-suggestions" class="unit-chip-row"></div>
+        </div>
+      </div>
+
+      <div class="row2">
+        <div>
+          <label for="shopping-purchase-new-quantity">数量</label>
+          <select class="review-quantity" id="shopping-purchase-new-quantity"></select>
+          <input type="number" class="review-quantity-numeric hidden" id="shopping-purchase-new-quantity-numeric" min="0" step="any" inputmode="decimal" placeholder="例: 500">
+        </div>
+        <div>
+          <label for="shopping-purchase-new-expiry">消費・賞味期限(任意)</label>
+          <input type="text" class="date-display" id="shopping-purchase-new-expiry" readonly placeholder="タップして選択">
+        </div>
+      </div>
+
+      <button type="button" class="btn-primary" id="shopping-purchase-new-submit-btn"><span class="material-symbols-rounded">add</span> 在庫に登録する</button>
+      <div id="shopping-purchase-new-message"></div>
+    </div>
   </div>
 </div>
 

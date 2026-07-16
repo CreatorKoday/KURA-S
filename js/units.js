@@ -3,7 +3,6 @@
 // ==========================================================
 
 import { escapeHtml } from "./utils.js";
-import { updateItemQuantityMode } from "./quantity.js";
 
 export const UNIT_RULES = [
   { keywords: ["卵", "たまご"], units: ["パック", "個"] },
@@ -36,10 +35,12 @@ export function guessUnitOptions(name) {
   return ["個"];
 }
 
-export function updateUnitSuggestions() {
-  const name = document.getElementById("item-name").value.trim();
-  const unitInput = document.getElementById("item-unit");
-  const suggestBox = document.getElementById("item-unit-suggestions");
+// 商品名 → 単位の自動提案(共通ロジック)。手動登録以外の画面(買い物リストからの
+// 在庫登録など)でも同じ挙動を再利用できるよう、対象の要素を引数で受け取る。
+// 単位が変わったら unitInput に "input" イベントを発火するので、呼び出し側は
+// 通常の input リスナー(数量モード切替など)をそのまま使える。
+export function applyUnitSuggestions({ nameInput, unitInput, suggestBox }) {
+  const name = nameInput.value.trim();
 
   if (!name) {
     suggestBox.innerHTML = "";
@@ -65,11 +66,21 @@ export function updateUnitSuggestions() {
         unitInput.value = chip.dataset.unit;
         suggestBox.querySelectorAll(".unit-chip").forEach(c => c.classList.remove("selected"));
         chip.classList.add("selected");
-        updateItemQuantityMode();
+        unitInput.dispatchEvent(new Event("input"));
       });
     });
   }
-  updateItemQuantityMode();
+  unitInput.dispatchEvent(new Event("input"));
+}
+
+// ホーム画面(手動登録)向けの薄いラッパー。既存の呼び出し元(barcode.js の
+// updateUnitSuggestions() 引数なし呼び出し)に影響しないよう、挙動は変更しない。
+export function updateUnitSuggestions() {
+  applyUnitSuggestions({
+    nameInput: document.getElementById("item-name"),
+    unitInput: document.getElementById("item-unit"),
+    suggestBox: document.getElementById("item-unit-suggestions")
+  });
 }
 
 document.getElementById("item-name").addEventListener("input", updateUnitSuggestions);

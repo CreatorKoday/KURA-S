@@ -53,7 +53,8 @@ async function resolveItem({ name, category, unit, barcode }) {
 
 // 商品(itemId)に対して、同じ賞味期限(未設定同士も含む)のロットがあれば数量を加算、
 // なければ新しいロットを作成する。賞味期限が異なる場合は必ず新規ロットになる。
-async function resolveLot(itemId, quantity, expiryDate) {
+// (買い物リストからの在庫登録など、既存商品にロットだけ追加したい他の処理からも再利用する)
+export async function resolveLot(itemId, quantity, expiryDate) {
   let findQuery = supabaseClient.from("item_lots").select("id, quantity").eq("item_id", itemId);
   findQuery = expiryDate ? findQuery.eq("expiry_date", expiryDate) : findQuery.is("expiry_date", null);
   const { data: existingList, error: findError } = await findQuery.limit(1);

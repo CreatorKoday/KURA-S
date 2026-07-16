@@ -27,18 +27,26 @@ export async function startScanner(mode) {
   html5QrCode = new Html5Qrcode(readerId);
   const config = {
     fps: 10,
-    qrbox: { width: 320, height: 200 },
+    // 固定サイズだと画面幅の狭い/広い端末で最適化できないため、実際の映像サイズに応じて可変にする。
+    // 横長(約2.2:1)にしてJAN/EANバーコードが収まりやすくする。
+    qrbox: (viewfinderWidth, viewfinderHeight) => {
+      const width = Math.round(Math.min(viewfinderWidth * 0.92, 500));
+      const height = Math.round(Math.min(viewfinderHeight * 0.55, width / 2.2));
+      return { width, height };
+    },
     formatsToSupport: [
       Html5QrcodeSupportedFormats.EAN_13,
       Html5QrcodeSupportedFormats.EAN_8,
       Html5QrcodeSupportedFormats.UPC_A,
-      Html5QrcodeSupportedFormats.UPC_E,
-      Html5QrcodeSupportedFormats.CODE_128
+      Html5QrcodeSupportedFormats.UPC_E
     ],
     videoConstraints: {
       facingMode: "environment",
-      width: { ideal: 1920 },
-      height: { ideal: 1080 }
+      width: { ideal: 2560 },
+      height: { ideal: 1440 }
+    },
+    experimentalFeatures: {
+      useBarCodeDetectorIfSupported: true
     }
   };
   try {
@@ -48,10 +56,23 @@ export async function startScanner(mode) {
       onScanSuccess,
       () => {}
     );
+    await applyContinuousAutoFocusIfSupported();
   } catch (err) {
     showMessage(addMessageBox, "カメラを起動できませんでした: " + (err && err.message ? err.message : err), true);
     document.getElementById(activeScannerWrapId).classList.add("hidden");
   }
+}
+
+// 連続オートフォーカスは端末・ブラウザが対応している場合のみ適用する(Safariは非対応だが、
+// getRunningTrackCapabilities()が対応状況を返すため、未対応環境では何もせず安全に無視される)
+async function applyContinuousAutoFocusIfSupported() {
+  if (!html5QrCode) return;
+  try {
+    const capabilities = html5QrCode.getRunningTrackCapabilities();
+    if (capabilities && Array.isArray(capabilities.focusMode) && capabilities.focusMode.includes("continuous")) {
+      await html5QrCode.applyVideoConstraints({ advanced: [{ focusMode: "continuous" }] });
+    }
+  } catch (e) {}
 }
 
 export async function stopScanner() {
