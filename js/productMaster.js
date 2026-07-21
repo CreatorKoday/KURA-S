@@ -67,6 +67,47 @@ export function getCategoryReading(category) {
   return CATEGORY_READING_MAP[category] || "";
 }
 
+// 商品検索の優先度: [商品名]>[標準商品名]>[サブカテゴリー]>[カテゴリー]>[検索キーワード]。
+// 消費画面の検索・在庫確認画面の絞り込み検索で共有する(重複実装を避けるためここに集約)
+const SEARCH_FIELD_PRIORITY = { name: 5, canonical: 4, subCategory: 3, category: 2, keyword: 1 };
+
+// item(items行 + product_master埋め込み)がterm(部分一致、ひらがな読みも対象)に
+// どの優先度で一致するかを返す(一致しなければ0)
+export function computeItemSearchScore(item, term) {
+  const t = term.toLowerCase();
+  const master = item.product_master;
+  let score = 0;
+
+  if ((item.name || "").toLowerCase().includes(t)) score = Math.max(score, SEARCH_FIELD_PRIORITY.name);
+
+  if (master) {
+    if ((master.canonical_name || "").toLowerCase().includes(t) || (master.canonical_name_reading || "").includes(t)) {
+      score = Math.max(score, SEARCH_FIELD_PRIORITY.canonical);
+    }
+    if ((master.sub_category || "").toLowerCase().includes(t) || (master.sub_category_reading || "").includes(t)) {
+      score = Math.max(score, SEARCH_FIELD_PRIORITY.subCategory);
+    }
+  }
+
+  const category = (master && master.category) || item.category;
+  if (category && (category.toLowerCase().includes(t) || getCategoryReading(category).includes(t))) {
+    score = Math.max(score, SEARCH_FIELD_PRIORITY.category);
+  }
+
+  if (master && master.search_keywords) {
+    const keywords = master.search_keywords || [];
+    const readings = master.search_keywords_reading || [];
+    for (let i = 0; i < keywords.length; i++) {
+      if ((keywords[i] || "").toLowerCase().includes(t) || (readings[i] || "").includes(t)) {
+        score = Math.max(score, SEARCH_FIELD_PRIORITY.keyword);
+        break;
+      }
+    }
+  }
+
+  return score;
+}
+
 // ひらがな(繰り返し記号「ー」含む)のみで構成されているか。標準商品名の読み仮名欄の
 // 必須バリデーションに使う(漢字・カタカナ・空欄を弾く)
 const HIRAGANA_PATTERN = /^[ぁ-んー]+$/;
@@ -245,6 +286,25 @@ export async function resolveProductMaster(rawName, { forceRegenerate = false } 
           .eq("id", existingAlias.product_master_id)
           .maybeSingle();
         if (master) return { master, generatedNew: false };
+      }
+
+      // 入力文字列がそのまま既存の標準商品名と完全一致する場合も、AIを呼ばずその商品マスタを再利用する
+      // (標準商品名の予測候補をそのまま選んで登録した場合など)。ヒットした生の商品名も
+      // 次回以降のためにキャッシュしておく
+      const { data: existingMasterByCanonical } = await supabaseClient
+        .from("product_master")
+        .select("*")
+        .eq("canonical_normalized_name", normalized)
+        .maybeSingle();
+
+      if (existingMasterByCanonical) {
+        await supabaseClient
+          .from("product_name_alias")
+          .upsert(
+            { normalized_name: normalized, raw_name: rawName, product_master_id: existingMasterByCanonical.id },
+            { onConflict: "normalized_name" }
+          );
+        return { master: existingMasterByCanonical, generatedNew: false };
       }
     }
 

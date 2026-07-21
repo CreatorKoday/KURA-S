@@ -183,14 +183,17 @@
 
     <div id="view-inventory" class="view hidden">
       <h2 class="view-title">在庫確認</h2>
-      <div class="filter-row">
-        <select id="filter-category">
-          <option value="">すべてのカテゴリー</option>
-        </select>
-        <select id="filter-subcategory">
-          <option value="">すべてのサブカテゴリー</option>
-        </select>
+      <div class="inventory-toolbar">
+        <button type="button" id="inventory-filter-btn" class="inventory-filter-btn">
+          <span class="material-symbols-rounded">tune</span>
+          <span class="inventory-filter-btn-label">フィルター</span>
+        </button>
+        <button type="button" id="inventory-sort-btn" class="inventory-filter-btn">
+          <span class="material-symbols-rounded">swap_vert</span>
+          <span class="inventory-sort-btn-label">並び替え</span>
+        </button>
       </div>
+      <input type="text" id="inventory-search" placeholder="商品名で検索(ひらがなも可)">
       <div id="item-list"></div>
     </div>
 
@@ -299,12 +302,12 @@
 <div id="product-detail-overlay" class="hidden">
   <div id="product-detail-sheet">
     <div class="product-detail-header">
-      <h2>商品の詳細</h2>
+      <h2 id="product-detail-title">商品の詳細</h2>
       <button type="button" class="modal-close-btn" id="product-detail-close-btn"><span class="material-symbols-rounded">close</span></button>
     </div>
 
-    <!-- 在庫設定(items.low_stock_threshold)。商品属性の有無に関わらず常に表示する -->
-    <div class="product-detail-section">
+    <!-- 在庫設定(最低数量)。masterモード:product_master単位/fallbackモード:items単位。itemモードでは非表示 -->
+    <div class="product-detail-section" id="pd-threshold-section">
       <div class="product-detail-section-header">
         <h3>在庫設定</h3>
       </div>
@@ -435,10 +438,60 @@
       <div id="product-detail-save-message"></div>
     </div>
 
-    <!-- 商品(在庫の全ロットを含む)の削除。商品属性の有無に関わらず常に表示する -->
+    <!-- 在庫ロット(数量・賞味期限・購入日)。item/fallbackモードのみ表示。masterモードでは非表示 -->
+    <div class="product-detail-section" id="pd-lots-section">
+      <div class="product-detail-section-header">
+        <h3>在庫ロット</h3>
+      </div>
+      <div id="pd-lots-list"></div>
+    </div>
+
+    <!-- 商品(在庫の全ロットを含む)の削除。item/fallbackモードのみ表示。masterモードでは非表示 -->
     <button type="button" class="btn-secondary" id="product-detail-delete-btn" style="margin-top:20px; color:var(--danger); border-color:var(--danger);">
       <span class="material-symbols-rounded">delete</span> この商品を削除
     </button>
+  </div>
+</div>
+
+<!-- 在庫確認画面の絞り込みフィルター(Amazonアプリ風の2ペイン: 左に種類一覧、右に選択肢) -->
+<div id="inventory-filter-overlay" class="two-pane-overlay hidden">
+  <div id="inventory-filter-sheet" class="two-pane-sheet">
+    <div class="accordion-panel-header">
+      <h2 style="margin:0;">絞り込み</h2>
+      <button type="button" class="modal-close-btn" id="inventory-filter-close-btn"><span class="material-symbols-rounded">close</span></button>
+    </div>
+    <div id="inventory-filter-body" class="two-pane-body">
+      <div id="inventory-filter-types" class="two-pane-types"></div>
+      <div id="inventory-filter-options" class="two-pane-options"></div>
+    </div>
+    <div id="inventory-filter-summary" class="inventory-selection-summary hidden"></div>
+    <div id="inventory-filter-actions" class="two-pane-actions">
+      <button type="button" class="btn-secondary" id="inventory-filter-clear-btn">フィルターを解除</button>
+      <button type="button" class="btn-primary" id="inventory-filter-apply-btn">結果を表示</button>
+    </div>
+  </div>
+</div>
+
+<!-- 在庫確認画面の並び替え(カテゴリ/サブカテゴリ/カード/カード内を独立して設定。「すべて」タブは4つ一括反映) -->
+<div id="inventory-sort-overlay" class="two-pane-overlay hidden">
+  <div id="inventory-sort-sheet" class="two-pane-sheet">
+    <div class="accordion-panel-header">
+      <h2 style="margin:0;">並び替え</h2>
+      <button type="button" class="modal-close-btn" id="inventory-sort-close-btn"><span class="material-symbols-rounded">close</span></button>
+    </div>
+    <div id="inventory-sort-level-tabs" class="sort-level-tabs"></div>
+    <div id="inventory-sort-body" class="two-pane-body">
+      <div id="inventory-sort-types" class="two-pane-types"></div>
+      <div id="inventory-sort-directions" class="two-pane-options"></div>
+    </div>
+    <div id="inventory-sort-summary-row">
+      <span id="inventory-sort-summary" class="inventory-selection-summary hidden"></span>
+      <button type="button" id="inventory-sort-default-btn" class="inventory-sort-default-btn">デフォルトに設定</button>
+    </div>
+    <div id="inventory-sort-actions" class="two-pane-actions">
+      <button type="button" class="btn-secondary" id="inventory-sort-clear-btn">デフォルトに戻す</button>
+      <button type="button" class="btn-primary" id="inventory-sort-apply-btn">並び替え</button>
+    </div>
   </div>
 </div>
 
@@ -491,13 +544,14 @@
             <button type="button" class="unit-chip" id="item-quantity-quick-plus">＋1</button>
           </div>
         </div>
-        <div>
-          <label for="item-expiry">消費・賞味期限(任意)</label>
-          <input type="text" id="item-expiry" class="date-display" placeholder="未設定" readonly>
-          <div class="qty-quick-adjust-row" id="item-expiry-quick-adjust">
-            <button type="button" class="unit-chip" id="item-expiry-quick-minus">－1日</button>
-            <button type="button" class="unit-chip" id="item-expiry-quick-plus">＋1日</button>
-          </div>
+      </div>
+
+      <div>
+        <label for="item-expiry">消費・賞味期限</label>
+        <input type="text" id="item-expiry" class="date-display" placeholder="未設定" readonly>
+        <div class="qty-quick-adjust-row" id="item-expiry-quick-adjust">
+          <button type="button" class="unit-chip" id="item-expiry-quick-minus">－1日</button>
+          <button type="button" class="unit-chip" id="item-expiry-quick-plus">＋1日</button>
         </div>
       </div>
 

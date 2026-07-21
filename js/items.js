@@ -15,9 +15,9 @@ import { supabaseClient } from "./config.js";
 import { itemListEl, manualAddMessageBox } from "./elements.js";
 import { showMessage, escapeHtml, showAppNotice, productMasterStatusPrefix } from "./utils.js";
 import { syncShoppingListForItem, addToShoppingList, loadShoppingList } from "./shopping.js";
-import { isContinuousUnit } from "./quantity.js";
+import { isContinuousUnit, computeCombinedStockQuantity, representativeUnitForEntries } from "./quantity.js";
 import { openQuantityPicker } from "./quantityPicker.js";
-import { resolveProductMaster } from "./productMaster.js";
+import { resolveProductMaster, computeItemSearchScore } from "./productMaster.js";
 import { updateUnitSuggestions } from "./units.js";
 
 // 手動登録画面の数量欄(4桁ドラムロールピッカーで選択した値を保持する)
@@ -191,6 +191,11 @@ registerOverlayEl.addEventListener("click", (e) => {
 // たびにクライアント側でフィルタする。AI呼び出し・デバウンスは不要
 let nameSuggestionPool = [];
 let lastSelectedSuggestionValue = null;
+// 予測候補(標準商品名・既存商品名のどちらでも)を選んだ直後だけtrueにし、予測欄に
+// 「詳細を入力する」の選択肢を追加表示する(詳細は`js/items.js`のparseNameWithDetail参照)。
+// detailOptionAnchorValueは選択した時点の値で、以後この値のままである間だけ表示を維持する
+let showDetailEntryOption = false;
+let detailOptionAnchorValue = null;
 
 async function loadNameSuggestionPool() {
   const [{ data: itemRows }, { data: masterRows }] = await Promise.all([
@@ -272,16 +277,30 @@ function hideNameSuggestions() {
   setNameSuggestionsVisible(false);
   document.getElementById("item-name-suggestions").innerHTML = "";
   lastSelectedSuggestionValue = null;
+  showDetailEntryOption = false;
+  detailOptionAnchorValue = null;
 }
 
 // 標準商品名の候補は、文字の開始位置がずれて読みにくくならないよう、
 // バッジ「標準」をテキストの右端に小さく表示する。先頭の「・」は検索アイコンの代わりの
 // 目印(このアプリでは「検索」ではなく「候補の提示」なので、機能を連想させない記号にしている)
+// 「詳細を入力する」の行(予測候補を選んだ直後だけ表示。タップすると入力欄の末尾に
+// 「,」を追記し、続けて詳細(例:「小間切れ」)を入力できるようにする)
+function detailEntryRowHtml() {
+  return `
+    <div class="name-suggestion-row name-suggestion-detail-row" data-action="append-name-detail">
+      <span class="name-suggestion-mark">✏️</span>
+      <span class="name-suggestion-text">詳細を入力する</span>
+    </div>
+  `;
+}
+
 function renderNameSuggestions(term) {
   const suggestionsEl = document.getElementById("item-name-suggestions");
   const matches = term ? filterNameSuggestions(term) : [];
+  const detailRow = showDetailEntryOption ? detailEntryRowHtml() : "";
 
-  if (matches.length === 0) {
+  if (matches.length === 0 && !detailRow) {
     setNameSuggestionsVisible(false);
     suggestionsEl.innerHTML = "";
     return;
@@ -295,6 +314,7 @@ function renderNameSuggestions(term) {
         ${m.isCanonical ? '<span class="name-suggestion-badge">標準</span>' : ""}
       </div>
     `).join("")}
+    ${detailRow}
   `;
   setNameSuggestionsVisible(true);
 }
@@ -308,11 +328,16 @@ let suggestionsHideTimer = null;
 itemNameInput.addEventListener("input", () => {
   clearTimeout(suggestionsHideTimer);
   const value = itemNameInput.value.trim();
-  // 商品名候補を選んだ直後で値が変わっていなければ予測は表示しない
+  // 商品名候補(標準商品名ではない方)を選んだ直後で値が変わっていなければ、通常の予測は
+  // 表示しないが、「詳細を入力する」の選択肢(showDetailEntryOptionがtrueの間)だけは見せる
   // (標準商品名を選んだ場合はlastSelectedSuggestionValueを記録していないため、ここには来ない)
   if (value && value === lastSelectedSuggestionValue) {
-    setNameSuggestionsVisible(false);
+    renderNameSuggestions("");
     return;
+  }
+  // 選択直後の値からさらに変更された場合は、詳細入力オプションは役目を終えたので消す
+  if (!(value && value === detailOptionAnchorValue)) {
+    showDetailEntryOption = false;
   }
   lastSelectedSuggestionValue = null;
   renderNameSuggestions(value);
@@ -326,6 +351,21 @@ itemNameInput.addEventListener("focus", () => {
 
 // クリックより先にblurが発火して候補が消えてしまわないよう、mousedownの時点で確定させる
 itemNameSuggestionsEl.addEventListener("mousedown", (e) => {
+  // 「詳細を入力する」行: 入力欄の末尾に「,」を追記し、続けて詳細を入力できるようにする
+  const detailRow = e.target.closest('[data-action="append-name-detail"]');
+  if (detailRow) {
+    e.preventDefault();
+    clearTimeout(suggestionsHideTimer);
+    itemNameInput.value = itemNameInput.value + ",";
+    lastSelectedSuggestionValue = null;
+    showDetailEntryOption = false;
+    detailOptionAnchorValue = null;
+    setNameSuggestionsVisible(false);
+    itemNameInput.focus();
+    itemNameInput.setSelectionRange(itemNameInput.value.length, itemNameInput.value.length);
+    return;
+  }
+
   const row = e.target.closest(".name-suggestion-row");
   if (!row) return;
   e.preventDefault();
@@ -336,6 +376,9 @@ itemNameSuggestionsEl.addEventListener("mousedown", (e) => {
   // 標準商品名を選んだ場合は、その名前に一致する商品名候補が新たに出てくる可能性があるため
   // あえて記録せず、下のinputイベントで予測を表示し続ける
   lastSelectedSuggestionValue = isCanonical ? null : row.dataset.value;
+  // 選択直後だけ「詳細を入力する」の選択肢を表示する
+  showDetailEntryOption = true;
+  detailOptionAnchorValue = row.dataset.value;
   // 単位の自動推定・予測欄の表示更新など、既存のinputリスナーに反映させる
   itemNameInput.dispatchEvent(new Event("input", { bubbles: true }));
 });
@@ -344,10 +387,470 @@ itemNameInput.addEventListener("blur", () => {
   suggestionsHideTimer = setTimeout(() => setNameSuggestionsVisible(false), 150);
 });
 
-const filterCategorySelect = document.getElementById("filter-category");
+const inventorySearchInput = document.getElementById("inventory-search");
 
-filterCategorySelect.addEventListener("change", () => loadItems());
-document.getElementById("filter-subcategory").addEventListener("change", () => loadItems());
+// カテゴリー/サブカテゴリーと掛け合わせる追加の絞り込み検索。消費画面の検索と同じく、
+// 1文字ごとの問い合わせを避けるため軽くデバウンスする
+let inventorySearchDebounceTimer = null;
+inventorySearchInput.addEventListener("input", () => {
+  clearTimeout(inventorySearchDebounceTimer);
+  inventorySearchDebounceTimer = setTimeout(() => loadItems(), 280);
+});
+
+// ---------- 在庫確認の絞り込みフィルター(Amazonアプリ風の2ペイン、複数選択) ----------
+//
+// 種別→カテゴリー→サブカテゴリーの順にカスケードする(種別を選ぶとカテゴリーの選択肢が
+// 絞られ、カテゴリーを選ぶとサブカテゴリーの選択肢が絞られる)。
+// 今後「登録日」「購入金額」「消費期限」などを追加する場合は、この配列に定義を足すだけで
+// 左側の種類一覧に反映される(現時点はチェックボックス一覧形式のみ実装している)
+const inventoryFilterDefs = [
+  { key: "type", label: "種別" },
+  { key: "category", label: "カテゴリー" },
+  { key: "subcategory", label: "サブカテゴリー" }
+];
+
+// 実際の絞り込みに使われている確定済みの選択(種類ごとにSet)
+const appliedInventoryFilters = { type: new Set(), category: new Set(), subcategory: new Set() };
+// フィルター画面を開いている間だけの一時的な選択。「結果を表示」を押すまでappliedへ反映しない
+let stagedInventoryFilters = { type: new Set(), category: new Set(), subcategory: new Set() };
+let activeInventoryFilterKey = inventoryFilterDefs[0].key;
+// loadItems()が最後に取得した全件。フィルター画面の選択肢(種別/カテゴリー/サブカテゴリーの一覧)を作るのに使う
+let latestAllItems = [];
+
+function computeTypeOptions(allItems) {
+  return Array.from(new Set(allItems.map(effectiveType).filter(Boolean))).sort((a, b) => a.localeCompare(b, "ja"));
+}
+function computeCategoryOptions(allItems, selectedTypes) {
+  const relevant = selectedTypes.size > 0
+    ? allItems.filter(item => selectedTypes.has(effectiveType(item)))
+    : allItems;
+  return Array.from(new Set(relevant.map(effectiveCategory).filter(Boolean))).sort((a, b) => a.localeCompare(b, "ja"));
+}
+function computeSubcategoryOptions(allItems, selectedTypes, selectedCategories) {
+  let relevant = allItems;
+  if (selectedTypes.size > 0) relevant = relevant.filter(item => selectedTypes.has(effectiveType(item)));
+  if (selectedCategories.size > 0) relevant = relevant.filter(item => selectedCategories.has(effectiveCategory(item)));
+  return Array.from(new Set(relevant.map(effectiveSubCategory).filter(Boolean))).sort((a, b) => a.localeCompare(b, "ja"));
+}
+
+function optionsForFilterKey(key) {
+  if (key === "type") return computeTypeOptions(latestAllItems);
+  if (key === "category") return computeCategoryOptions(latestAllItems, stagedInventoryFilters.type);
+  if (key === "subcategory") return computeSubcategoryOptions(latestAllItems, stagedInventoryFilters.type, stagedInventoryFilters.category);
+  return [];
+}
+
+function renderInventoryFilterTypes() {
+  document.getElementById("inventory-filter-types").innerHTML = inventoryFilterDefs.map(def => {
+    const count = stagedInventoryFilters[def.key].size;
+    return `
+      <div class="filter-type-row ${def.key === activeInventoryFilterKey ? "active" : ""}" data-key="${def.key}">
+        ${escapeHtml(def.label)}${count > 0 ? ` (${count})` : ""}
+      </div>
+    `;
+  }).join("");
+}
+
+function renderInventoryFilterOptions() {
+  const el = document.getElementById("inventory-filter-options");
+  const options = optionsForFilterKey(activeInventoryFilterKey);
+
+  if (options.length === 0) {
+    el.innerHTML = '<div class="empty-note">選択肢がありません</div>';
+    return;
+  }
+
+  el.innerHTML = options.map(opt => {
+    const checked = stagedInventoryFilters[activeInventoryFilterKey].has(opt);
+    return `
+      <div class="filter-option-row" data-value="${escapeHtml(opt)}">
+        <span class="filter-option-checkbox ${checked ? "checked" : ""}"><span class="material-symbols-rounded">check</span></span>
+        <span>${escapeHtml(opt)}</span>
+      </div>
+    `;
+  }).join("");
+}
+
+// 選択中のフィルターを「[飲料] > [清涼飲料水]」のように案内文で表示する。
+// カテゴリー・サブカテゴリーのように親子関係にある種類は" > "で、複数選択は「・」で連結する
+function renderInventoryFilterSummary() {
+  const el = document.getElementById("inventory-filter-summary");
+  const parts = [];
+  if (stagedInventoryFilters.type.size > 0) {
+    parts.push(`[${Array.from(stagedInventoryFilters.type).join("・")}]`);
+  }
+  if (stagedInventoryFilters.category.size > 0) {
+    parts.push(`[${Array.from(stagedInventoryFilters.category).join("・")}]`);
+  }
+  if (stagedInventoryFilters.subcategory.size > 0) {
+    parts.push(`[${Array.from(stagedInventoryFilters.subcategory).join("・")}]`);
+  }
+  const text = parts.join(" > ");
+  el.textContent = text;
+  el.classList.toggle("hidden", !text);
+}
+
+document.getElementById("inventory-filter-types").addEventListener("click", (e) => {
+  const row = e.target.closest(".filter-type-row");
+  if (!row) return;
+  activeInventoryFilterKey = row.dataset.key;
+  renderInventoryFilterTypes();
+  renderInventoryFilterOptions();
+});
+
+document.getElementById("inventory-filter-options").addEventListener("click", (e) => {
+  const row = e.target.closest(".filter-option-row");
+  if (!row) return;
+  const set = stagedInventoryFilters[activeInventoryFilterKey];
+  const value = row.dataset.value;
+  if (set.has(value)) set.delete(value); else set.add(value);
+
+  // 種別・カテゴリーの選択を変えたら、対象外になったカテゴリー・サブカテゴリーの選択は外す(カスケード)
+  if (activeInventoryFilterKey === "type") {
+    const validCats = new Set(computeCategoryOptions(latestAllItems, stagedInventoryFilters.type));
+    Array.from(stagedInventoryFilters.category).forEach(cat => {
+      if (!validCats.has(cat)) stagedInventoryFilters.category.delete(cat);
+    });
+  }
+  if (activeInventoryFilterKey === "type" || activeInventoryFilterKey === "category") {
+    const validSubs = new Set(computeSubcategoryOptions(latestAllItems, stagedInventoryFilters.type, stagedInventoryFilters.category));
+    Array.from(stagedInventoryFilters.subcategory).forEach(sub => {
+      if (!validSubs.has(sub)) stagedInventoryFilters.subcategory.delete(sub);
+    });
+  }
+
+  renderInventoryFilterTypes();
+  renderInventoryFilterOptions();
+  renderInventoryFilterSummary();
+});
+
+function openInventoryFilterOverlay() {
+  // 確定済みの選択をコピーして一時状態にする(閉じるだけで確定しなければ破棄される)
+  stagedInventoryFilters = {
+    type: new Set(appliedInventoryFilters.type),
+    category: new Set(appliedInventoryFilters.category),
+    subcategory: new Set(appliedInventoryFilters.subcategory)
+  };
+  activeInventoryFilterKey = inventoryFilterDefs[0].key;
+  renderInventoryFilterTypes();
+  renderInventoryFilterOptions();
+  renderInventoryFilterSummary();
+  document.getElementById("inventory-filter-overlay").classList.remove("hidden");
+}
+function closeInventoryFilterOverlay() {
+  document.getElementById("inventory-filter-overlay").classList.add("hidden");
+}
+
+function updateInventoryFilterButtonLabel() {
+  const total = appliedInventoryFilters.type.size + appliedInventoryFilters.category.size + appliedInventoryFilters.subcategory.size;
+  document.querySelector("#inventory-filter-btn .inventory-filter-btn-label").textContent =
+    total > 0 ? `フィルター (${total})` : "フィルター";
+}
+
+document.getElementById("inventory-filter-btn").addEventListener("click", openInventoryFilterOverlay);
+document.getElementById("inventory-filter-close-btn").addEventListener("click", closeInventoryFilterOverlay);
+document.getElementById("inventory-filter-overlay").addEventListener("click", (e) => {
+  if (e.target.id === "inventory-filter-overlay") closeInventoryFilterOverlay();
+});
+
+// 「フィルターを解除」: その場で選択をクリアするだけ(パネルは開いたまま)。
+// 反映するには「結果を表示」を押す必要がある
+document.getElementById("inventory-filter-clear-btn").addEventListener("click", () => {
+  stagedInventoryFilters = { type: new Set(), category: new Set(), subcategory: new Set() };
+  renderInventoryFilterTypes();
+  renderInventoryFilterOptions();
+  renderInventoryFilterSummary();
+});
+
+document.getElementById("inventory-filter-apply-btn").addEventListener("click", () => {
+  appliedInventoryFilters.type = new Set(stagedInventoryFilters.type);
+  appliedInventoryFilters.category = new Set(stagedInventoryFilters.category);
+  appliedInventoryFilters.subcategory = new Set(stagedInventoryFilters.subcategory);
+  closeInventoryFilterOverlay();
+  loadItems();
+});
+
+// ---------- 在庫確認の並び替え(カテゴリ/サブカテゴリ/カード/カード内を独立して設定) ----------
+//
+// 「カテゴリ」「サブカテゴリ」「カード(同じサブカテゴリー内でどの商品が上に来るか)」
+// 「カード内(1枚のカードの中で商品名ごとの区画がどちらが上に来るか)」の4階層を、
+// それぞれ独立に[期限/登録日/50音 × 昇順/降順]で並び替えられる。
+// 「すべて」タブは実体を持たず、選ぶと4階層すべてに同じ設定を一括反映するだけの特別なタブ。
+// 何も設定していない階層は、これまで通りの既定の並び順(カテゴリー/サブカテゴリーは文字コード順、
+// カード/カード内は賞味期限が近い順)のまま変わらない。
+//
+// 「登録日」で並び替えるには items.created_at が必要(Supabaseの標準的な作成日時列を想定)。
+// この列が実際に存在しない場合、登録日での並び替えは効かない(全件同値扱いになり元の順序が保たれる)。
+const INVENTORY_SORT_CRITERIA = [
+  { key: "expiry", label: "期限", directions: [
+      { key: "asc", label: "期限が近い順" },
+      { key: "desc", label: "期限が遠い順" }
+    ] },
+  { key: "registeredAt", label: "登録日", directions: [
+      { key: "desc", label: "登録日が新しい順" },
+      { key: "asc", label: "登録日が古い順" }
+    ] },
+  { key: "name", label: "50音", directions: [
+      { key: "asc", label: "50音順(あ→わ)" },
+      { key: "desc", label: "50音順(わ→あ)" }
+    ] }
+];
+
+const INVENTORY_SORT_LEVELS = [
+  { key: "category", label: "カテゴリ" },
+  { key: "subcategory", label: "サブカテゴリ" },
+  { key: "card", label: "カード" },
+  { key: "cardInner", label: "カード内" }
+];
+
+const INVENTORY_SORT_DEFAULT_STORAGE_KEY = "kurasInventorySortDefault";
+
+function loadSavedInventorySortDefault() {
+  try {
+    const raw = localStorage.getItem(INVENTORY_SORT_DEFAULT_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+function saveInventorySortDefault(config) {
+  try {
+    localStorage.setItem(INVENTORY_SORT_DEFAULT_STORAGE_KEY, JSON.stringify(config));
+  } catch (e) {
+    console.error("並び替えの既定値保存に失敗:", e);
+  }
+}
+
+function emptySortByLevel() {
+  return { category: null, subcategory: null, card: null, cardInner: null };
+}
+function cloneSortByLevel(source) {
+  return { category: source.category, subcategory: source.subcategory, card: source.card, cardInner: source.cardInner };
+}
+function sortLevelsAreEqual(a, b) {
+  if (!a && !b) return true;
+  return !!a && !!b && a.key === b.key && a.direction === b.direction;
+}
+
+// 実際に一覧へ反映されている確定済みの設定(ブラウザに保存済みの既定値があればそれを初期値にする)
+const appliedInventorySortByLevel = loadSavedInventorySortDefault() || emptySortByLevel();
+// オーバーレイを開いている間だけの一時状態。「並び替え」を押すまでappliedへ反映しない
+let stagedInventorySortByLevel = emptySortByLevel();
+let activeInventorySortTab = "all"; // "all" | "category" | "subcategory" | "card" | "cardInner"
+let activeInventorySortCriterionKey = "expiry";
+
+// 現在の全階層が、指定した設定(nullも含む)ですべて一致しているか。「すべて」タブのチェック状態表示に使う
+function allInventorySortLevelsMatch(config) {
+  return INVENTORY_SORT_LEVELS.every(level => sortLevelsAreEqual(stagedInventorySortByLevel[level.key], config));
+}
+
+function renderInventorySortLevelTabs() {
+  const el = document.getElementById("inventory-sort-level-tabs");
+  const allTab = `<div class="sort-level-tab all-tab ${activeInventorySortTab === "all" ? "active" : ""}" data-key="all">すべて</div>`;
+  const levelTabs = INVENTORY_SORT_LEVELS.map(level =>
+    `<div class="sort-level-tab ${activeInventorySortTab === level.key ? "active" : ""}" data-key="${level.key}">${escapeHtml(level.label)}</div>`
+  ).join("");
+  el.innerHTML = allTab + levelTabs;
+}
+
+function renderInventorySortCriteria() {
+  document.getElementById("inventory-sort-types").innerHTML = INVENTORY_SORT_CRITERIA.map(def =>
+    `<div class="filter-type-row ${def.key === activeInventorySortCriterionKey ? "active" : ""}" data-key="${def.key}">${escapeHtml(def.label)}</div>`
+  ).join("");
+}
+
+function renderInventorySortDirections() {
+  const el = document.getElementById("inventory-sort-directions");
+  const def = INVENTORY_SORT_CRITERIA.find(c => c.key === activeInventorySortCriterionKey);
+  el.innerHTML = def.directions.map(dir => {
+    const candidate = { key: def.key, direction: dir.key };
+    const checked = activeInventorySortTab === "all"
+      ? allInventorySortLevelsMatch(candidate)
+      : sortLevelsAreEqual(stagedInventorySortByLevel[activeInventorySortTab], candidate);
+    return `
+      <div class="filter-option-row" data-direction="${dir.key}">
+        <span class="filter-option-checkbox ${checked ? "checked" : ""}"><span class="material-symbols-rounded">check</span></span>
+        <span>${escapeHtml(dir.label)}</span>
+      </div>
+    `;
+  }).join("");
+}
+
+// 選択中の並び替えを案内文で表示する(例:「期限が近い順」)。「すべて」タブでは
+// 4階層すべてが同じ設定で揃っている場合だけ表示する(揃っていなければ何も表示しない)
+function renderInventorySortSummary() {
+  const el = document.getElementById("inventory-sort-summary");
+  let config = null;
+
+  if (activeInventorySortTab === "all") {
+    const candidate = stagedInventorySortByLevel.category;
+    config = allInventorySortLevelsMatch(candidate) ? candidate : null;
+  } else {
+    config = stagedInventorySortByLevel[activeInventorySortTab];
+  }
+
+  let text = "";
+  if (config) {
+    const def = INVENTORY_SORT_CRITERIA.find(c => c.key === config.key);
+    const dir = def.directions.find(d => d.key === config.direction);
+    text = dir.label;
+  }
+
+  el.textContent = text;
+  el.classList.toggle("hidden", !text);
+}
+
+document.getElementById("inventory-sort-level-tabs").addEventListener("click", (e) => {
+  const tab = e.target.closest(".sort-level-tab");
+  if (!tab) return;
+  activeInventorySortTab = tab.dataset.key;
+  renderInventorySortLevelTabs();
+  renderInventorySortDirections();
+  renderInventorySortSummary();
+});
+
+document.getElementById("inventory-sort-types").addEventListener("click", (e) => {
+  const row = e.target.closest(".filter-type-row");
+  if (!row) return;
+  activeInventorySortCriterionKey = row.dataset.key;
+  renderInventorySortCriteria();
+  renderInventorySortDirections();
+  renderInventorySortSummary();
+});
+
+document.getElementById("inventory-sort-directions").addEventListener("click", (e) => {
+  const row = e.target.closest(".filter-option-row");
+  if (!row) return;
+  const candidate = { key: activeInventorySortCriterionKey, direction: row.dataset.direction };
+
+  if (activeInventorySortTab === "all") {
+    const shouldClear = allInventorySortLevelsMatch(candidate);
+    INVENTORY_SORT_LEVELS.forEach(level => {
+      stagedInventorySortByLevel[level.key] = shouldClear ? null : { ...candidate };
+    });
+  } else {
+    const current = stagedInventorySortByLevel[activeInventorySortTab];
+    stagedInventorySortByLevel[activeInventorySortTab] = sortLevelsAreEqual(current, candidate) ? null : { ...candidate };
+  }
+
+  renderInventorySortDirections();
+  renderInventorySortSummary();
+});
+
+function openInventorySortOverlay() {
+  stagedInventorySortByLevel = cloneSortByLevel(appliedInventorySortByLevel);
+  activeInventorySortTab = "all";
+  activeInventorySortCriterionKey = "expiry";
+  renderInventorySortLevelTabs();
+  renderInventorySortCriteria();
+  renderInventorySortDirections();
+  renderInventorySortSummary();
+  document.getElementById("inventory-sort-overlay").classList.remove("hidden");
+}
+function closeInventorySortOverlay() {
+  document.getElementById("inventory-sort-overlay").classList.add("hidden");
+}
+
+document.getElementById("inventory-sort-btn").addEventListener("click", openInventorySortOverlay);
+document.getElementById("inventory-sort-close-btn").addEventListener("click", closeInventorySortOverlay);
+document.getElementById("inventory-sort-overlay").addEventListener("click", (e) => {
+  if (e.target.id === "inventory-sort-overlay") closeInventorySortOverlay();
+});
+
+// 「デフォルトに戻す」: 保存済みの既定値(無ければ「並び替えなし」)を選択状態に反映するだけ(パネルは開いたまま)
+document.getElementById("inventory-sort-clear-btn").addEventListener("click", () => {
+  stagedInventorySortByLevel = loadSavedInventorySortDefault() || emptySortByLevel();
+  renderInventorySortLevelTabs();
+  renderInventorySortDirections();
+  renderInventorySortSummary();
+});
+
+// 「デフォルトに設定」: 現在選択中の内容(4階層すべて)をブラウザに保存する(反映はしない)
+document.getElementById("inventory-sort-default-btn").addEventListener("click", () => {
+  saveInventorySortDefault(stagedInventorySortByLevel);
+  showAppNotice("この並び替えをデフォルトに設定しました");
+});
+
+document.getElementById("inventory-sort-apply-btn").addEventListener("click", () => {
+  appliedInventorySortByLevel.category = stagedInventorySortByLevel.category;
+  appliedInventorySortByLevel.subcategory = stagedInventorySortByLevel.subcategory;
+  appliedInventorySortByLevel.card = stagedInventorySortByLevel.card;
+  appliedInventorySortByLevel.cardInner = stagedInventorySortByLevel.cardInner;
+  closeInventorySortOverlay();
+  loadItems();
+});
+
+// 並び替え(期限・登録日・50音)の値比較。方向を考慮し、aが良ければ負、bが良ければ正を返す。
+// 期限・登録日はnull(未設定)を常に最後に回す
+function compareInventorySortValues(criterion, direction, a, b) {
+  if (criterion === "name") {
+    const result = (a || "").localeCompare(b || "", "ja");
+    return direction === "asc" ? result : -result;
+  }
+  if (a === null && b === null) return 0;
+  if (a === null) return 1;
+  if (b === null) return -1;
+  const result = a < b ? -1 : a > b ? 1 : 0;
+  return direction === "asc" ? result : -result;
+}
+
+// aとbのうち、その並び替えで「より良い(先に来る)」方を返す
+function betterInventorySortValue(criterion, direction, a, b) {
+  if (a === undefined) return b;
+  if (b === undefined) return a;
+  return compareInventorySortValues(criterion, direction, a, b) <= 0 ? a : b;
+}
+
+// 複数の子要素から、getValueで取れる値のうち最良のものを1つ選ぶ。
+// カード→サブカテゴリー→カテゴリーと、階層をまたいで基準値を伝播させるのに使う
+function foldBestInventorySortValue(children, getValue, criterion, direction) {
+  const best = children.reduce((acc, child) => betterInventorySortValue(criterion, direction, acc, getValue(child)), undefined);
+  return best === undefined ? null : best;
+}
+
+// 1商品(items 1行)の並び替え用の値。期限は商品内の全ロットの中からその方向で最良のもの
+// (近い順なら最も近い期限)を採用する
+function itemInventorySortValue(item, criterion, direction) {
+  if (criterion === "name") {
+    return (item.product_master && item.product_master.canonical_name) || item.name;
+  }
+  if (criterion === "registeredAt") {
+    return item.created_at || null;
+  }
+  if (criterion === "expiry") {
+    const dates = (item.item_lots || []).map(l => l.expiry_date).filter(Boolean);
+    return foldBestInventorySortValue(dates, d => d, criterion, direction);
+  }
+  return null;
+}
+
+function groupInventorySortValue(group, criterion, direction) {
+  return foldBestInventorySortValue(group, item => itemInventorySortValue(item, criterion, direction), criterion, direction);
+}
+
+function subcategoryInventorySortValue(groups, criterion, direction) {
+  return foldBestInventorySortValue(groups, group => groupInventorySortValue(group, criterion, direction), criterion, direction);
+}
+
+function categoryInventorySortValue(subcatMap, criterion, direction) {
+  return foldBestInventorySortValue(Object.values(subcatMap), groups => subcategoryInventorySortValue(groups, criterion, direction), criterion, direction);
+}
+
+// 商品名欄で「,」を使うと、前半だけを商品マスタ解決(resolveProductMaster)の検索キーに使い、
+// 後半は検索に影響させず表示用の商品名にだけ反映する(例:「豚肉,小間切れ」→検索キー「豚肉」・
+// 表示名「豚肉(小間切れ)」)。予測変換で標準商品名・既存商品名を選んだ直後の「詳細を入力する」
+// ボタン(このファイル内)から使う想定の機能で、それ以外で「,」を含む商品名を入力した場合も
+// 同じルールで解釈する。「,」が無ければ従来通りそのままの文字列を検索キー・表示名の両方に使う
+function parseNameWithDetail(rawInput) {
+  const commaIndex = rawInput.indexOf(",");
+  if (commaIndex === -1) return { searchName: rawInput, displayName: rawInput };
+
+  const before = rawInput.slice(0, commaIndex).trim();
+  const after = rawInput.slice(commaIndex + 1).trim();
+  if (!before) return { searchName: rawInput, displayName: rawInput };
+
+  return { searchName: before, displayName: after ? `${before}(${after})` : before };
+}
 
 // 商品(items)を解決する。既存商品があればそのid、なければ新規作成してidを返す。
 // category未指定の新規商品は、まず商品マスタ(AI)から種別(食品/日用品)を判定して
@@ -357,13 +860,15 @@ document.getElementById("filter-subcategory").addEventListener("change", () => l
 // または "reused"(既存の商品属性を利用)。既存商品名にヒットした場合・種別を手入力した
 // 場合(商品マスタ解決自体が行われない)は null。呼び出し元の登録完了メッセージで使う。
 async function resolveItem({ name, category, unit }) {
-  const cleanName = (name || "").trim();
-  if (!cleanName) return { itemId: null, needsCategory: false, productMasterStatus: null };
+  const rawInput = (name || "").trim();
+  if (!rawInput) return { itemId: null, needsCategory: false, productMasterStatus: null };
+
+  const { searchName, displayName } = parseNameWithDetail(rawInput);
 
   const { data: existingList, error: findError } = await supabaseClient
     .from("items")
     .select("id")
-    .eq("name", cleanName)
+    .eq("name", displayName)
     .limit(1);
 
   if (findError) { console.error("既存商品の検索に失敗:", findError); return { itemId: null, needsCategory: false, productMasterStatus: null }; }
@@ -377,7 +882,7 @@ async function resolveItem({ name, category, unit }) {
   let productMasterStatus = null;
 
   if (!resolvedCategory) {
-    const resolved = await resolveProductMaster(cleanName);
+    const resolved = await resolveProductMaster(searchName);
     if (!resolved) return { itemId: null, needsCategory: true, productMasterStatus: null };
     resolvedCategory = resolved.master.type;
     productMasterId = resolved.master.id;
@@ -387,7 +892,7 @@ async function resolveItem({ name, category, unit }) {
   const { data: inserted, error: insertError } = await supabaseClient
     .from("items")
     .insert({
-      name: cleanName,
+      name: displayName,
       category: resolvedCategory,
       unit,
       low_stock_threshold: 0,
@@ -456,11 +961,16 @@ function effectiveCategory(item) {
 function effectiveSubCategory(item) {
   return (item.product_master && item.product_master.sub_category) || null;
 }
+// 種別(食品/日用品)。商品マスタがあればその type、無ければ items.category に
+// 直接この種別が入っている(resolveItem が商品マスタ未解決時のフォールバックとして保存するため)
+function effectiveType(item) {
+  return (item.product_master && item.product_master.type) || item.category || null;
+}
 
 export async function loadItems() {
   const { data, error } = await supabaseClient
     .from("items")
-    .select("*, item_lots(*), product_master(canonical_name, category, sub_category)")
+    .select("*, item_lots(*), product_master(canonical_name, canonical_name_reading, category, sub_category, sub_category_reading, search_keywords, search_keywords_reading, low_stock_threshold)")
     .order("name", { ascending: true });
 
   if (error) {
@@ -469,52 +979,22 @@ export async function loadItems() {
   }
 
   const allItems = data || [];
-  const categoryFilter = filterCategorySelect.value;
-  const subcategoryFilter = document.getElementById("filter-subcategory").value;
+  latestAllItems = allItems;
+  const searchTerm = inventorySearchInput.value.trim();
 
-  // カテゴリー/サブカテゴリーとも固定リストが無いため、選択肢は実データから動的に作る(サブカテゴリーはカテゴリー絞り込みに応じたカスケード)
-  updateCategoryFilterOptions(allItems);
-  updateSubcategoryFilterOptions(allItems, categoryFilter);
-
+  // カテゴリー・サブカテゴリー(複数選択)・検索欄は、既存の並び順・見出しを変えずに
+  // 掛け合わせる追加の絞り込みとして扱う(検索は消費画面と同じ優先度スコアリング。
+  // 一致すれば採用、順位付けには使わない)
   const filtered = allItems.filter(item => {
-    if (categoryFilter && effectiveCategory(item) !== categoryFilter) return false;
-    if (subcategoryFilter && effectiveSubCategory(item) !== subcategoryFilter) return false;
+    if (appliedInventoryFilters.type.size > 0 && !appliedInventoryFilters.type.has(effectiveType(item))) return false;
+    if (appliedInventoryFilters.category.size > 0 && !appliedInventoryFilters.category.has(effectiveCategory(item))) return false;
+    if (appliedInventoryFilters.subcategory.size > 0 && !appliedInventoryFilters.subcategory.has(effectiveSubCategory(item))) return false;
+    if (searchTerm && computeItemSearchScore(item, searchTerm) === 0) return false;
     return true;
   });
 
+  updateInventoryFilterButtonLabel();
   renderItems(filtered);
-}
-
-function updateCategoryFilterOptions(allItems) {
-  const select = filterCategorySelect;
-  const previousValue = select.value;
-
-  const categories = Array.from(new Set(
-    allItems.map(item => effectiveCategory(item)).filter(Boolean)
-  )).sort((a, b) => a.localeCompare(b, "ja"));
-
-  select.innerHTML = '<option value="">すべてのカテゴリー</option>' +
-    categories.map(cat => `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join("");
-
-  if (categories.includes(previousValue)) select.value = previousValue;
-}
-
-function updateSubcategoryFilterOptions(allItems, categoryFilter) {
-  const select = document.getElementById("filter-subcategory");
-  const previousValue = select.value;
-
-  const relevant = categoryFilter
-    ? allItems.filter(item => effectiveCategory(item) === categoryFilter)
-    : allItems;
-
-  const subCategories = Array.from(new Set(
-    relevant.map(item => effectiveSubCategory(item)).filter(Boolean)
-  )).sort((a, b) => a.localeCompare(b, "ja"));
-
-  select.innerHTML = '<option value="">すべてのサブカテゴリー</option>' +
-    subCategories.map(sub => `<option value="${escapeHtml(sub)}">${escapeHtml(sub)}</option>`).join("");
-
-  if (subCategories.includes(previousValue)) select.value = previousValue;
 }
 
 // 消費画面(js/consume.js)でも、ロット一覧を在庫確認画面と同じ見た目・並び順で表示するために再利用する
@@ -573,7 +1053,9 @@ function renderItems(items) {
     return;
   }
 
-  // 商品一覧は「もっとも賞味期限が近いロット」を基準に並べる(未設定は最後)
+  // 「カード」「カテゴリ」「サブカテゴリ」の並び替えが指定されていなければ、
+  // 商品一覧は既定どおり「もっとも賞味期限が近いロット」を基準に並べる(未設定は最後)。
+  // この下準備の並びは、カード/カテゴリ/サブカテゴリの並び替えが指定された場合は後で上書きされる
   const sortedItems = [...items].sort((a, b) => {
     const ea = earliestExpiry(a), eb = earliestExpiry(b);
     if (ea && eb) return ea < eb ? -1 : ea > eb ? 1 : 0;
@@ -586,6 +1068,19 @@ function renderItems(items) {
   // 万一グループ内で items.category が食い違っていてもグループが分断されないようにする
   const masterGroups = groupItemsByMaster(sortedItems);
 
+  // 「カード内」の並び替えが指定されていれば、各カードの中の商品名区画の順序を並べ替える
+  // (指定が無ければ、これまで通りグループ化時点の順序のまま)
+  const cardInnerSort = appliedInventorySortByLevel.cardInner;
+  if (cardInnerSort) {
+    masterGroups.forEach(group => {
+      group.sort((a, b) => compareInventorySortValues(
+        cardInnerSort.key, cardInnerSort.direction,
+        itemInventorySortValue(a, cardInnerSort.key, cardInnerSort.direction),
+        itemInventorySortValue(b, cardInnerSort.key, cardInnerSort.direction)
+      ));
+    });
+  }
+
   const buckets = {};
   masterGroups.forEach(group => {
     const category = effectiveCategory(group[0]);
@@ -595,10 +1090,44 @@ function renderItems(items) {
     buckets[category][subCategory].push(group);
   });
 
+  // 「カード」の並び替えが指定されていれば、同じサブカテゴリー内でのカードの順序を並べ替える
+  const cardSort = appliedInventorySortByLevel.card;
+  if (cardSort) {
+    Object.values(buckets).forEach(subcatMap => {
+      Object.keys(subcatMap).forEach(subCategory => {
+        subcatMap[subCategory].sort((a, b) => compareInventorySortValues(
+          cardSort.key, cardSort.direction,
+          groupInventorySortValue(a, cardSort.key, cardSort.direction),
+          groupInventorySortValue(b, cardSort.key, cardSort.direction)
+        ));
+      });
+    });
+  }
+
+  // 「カテゴリ」「サブカテゴリ」の並び替えが指定されていなければ、これまで通り文字コード順のまま
+  const categorySort = appliedInventorySortByLevel.category;
+  const subcategorySort = appliedInventorySortByLevel.subcategory;
+
+  const categoryKeys = categorySort
+    ? Object.keys(buckets).sort((a, b) => compareInventorySortValues(
+        categorySort.key, categorySort.direction,
+        categoryInventorySortValue(buckets[a], categorySort.key, categorySort.direction),
+        categoryInventorySortValue(buckets[b], categorySort.key, categorySort.direction)
+      ))
+    : Object.keys(buckets).sort();
+
   let html = "";
-  Object.keys(buckets).sort().forEach(category => {
+  categoryKeys.forEach(category => {
     html += `<h3 class="group-heading">${escapeHtml(category)}</h3>`;
-    Object.keys(buckets[category]).sort().forEach(subCategory => {
+    const subcategoryKeys = subcategorySort
+      ? Object.keys(buckets[category]).sort((a, b) => compareInventorySortValues(
+          subcategorySort.key, subcategorySort.direction,
+          subcategoryInventorySortValue(buckets[category][a], subcategorySort.key, subcategorySort.direction),
+          subcategoryInventorySortValue(buckets[category][b], subcategorySort.key, subcategorySort.direction)
+        ))
+      : Object.keys(buckets[category]).sort();
+
+    subcategoryKeys.forEach(subCategory => {
       html += `<h4 class="group-subheading">${escapeHtml(subCategory)}</h4>`;
       buckets[category][subCategory].forEach(group => { html += masterGroupCardHtml(group); });
     });
@@ -648,9 +1177,8 @@ function itemCardHtml(item) {
         <div class="item-name">${escapeHtml(item.name)}</div>
         <div class="item-badges">
           ${lowStock ? '<span class="tag warning">在庫少なめ</span>' : ""}
-          <button type="button" class="detail-btn" data-action="view-product-detail"
+          <button type="button" class="detail-btn" data-action="view-product-detail" data-mode="fallback"
             data-item-id="${item.id}" data-item-name="${escapeHtml(item.name)}"
-            data-product-master-id="${item.product_master_id || ""}"
             data-low-stock-threshold="${item.low_stock_threshold}" data-unit="${escapeHtml(item.unit)}" aria-label="商品の詳細">
             <span class="material-symbols-rounded">info</span>
           </button>
@@ -665,7 +1193,8 @@ function itemCardHtml(item) {
 
 // 標準商品名(product_master)ごとにまとめたカード。
 // 見出しに標準商品名だけを表示し、その下に実際の商品名(items.name)ごとの区画を並べる。
-// 商品詳細・最低数量・削除は items.id 単位の操作のため、詳細ボタンは各区画(子)側に置く。
+// 商品属性・最低数量は標準商品名(カード)単位の操作のため見出し側に⚙️ボタンを置き、
+// 購入日・削除は商品名(items.id)単位の操作のため各区画(子)側にⓘボタンを置く。
 function masterGroupCardHtml(group) {
   if (group.length === 1 && !group[0].product_master_id) {
     return itemCardHtml(group[0]);
@@ -683,10 +1212,28 @@ function masterGroupCardHtml(group) {
 
   const canonicalName = (group[0].product_master && group[0].product_master.canonical_name) || group[0].name;
 
+  // 最低数量は標準商品名(カード)単位。個数系・定量系が混在する場合は
+  // computeCombinedStockQuantity で定量換算してから合算し、product_master.low_stock_threshold と比較する
+  const entries = group.map(item => ({
+    quantity: (item.item_lots || []).reduce((sum, l) => sum + Number(l.quantity), 0),
+    unit: item.unit
+  }));
+  const combinedQuantity = computeCombinedStockQuantity(entries);
+  const masterThreshold = Number(group[0].product_master && group[0].product_master.low_stock_threshold) || 0;
+  const cardLowStock = masterThreshold > 0 && combinedQuantity < masterThreshold;
+  const thresholdUnit = representativeUnitForEntries(entries);
+
   return `
     <div class="item-card ${cardStatusClass}">
       <div class="item-card-header">
         <div class="item-name">${escapeHtml(canonicalName)}</div>
+        <span class="item-badges">
+          ${cardLowStock ? '<span class="tag warning">在庫少なめ</span>' : ""}
+          <button type="button" class="detail-btn" data-action="view-product-detail" data-mode="master"
+            data-product-master-id="${group[0].product_master_id}" data-threshold-unit="${escapeHtml(thresholdUnit)}" aria-label="商品属性の詳細">
+            <span class="material-symbols-rounded">settings</span>
+          </button>
+        </span>
       </div>
       ${group.map(item => itemSubgroupHtml(item)).join("")}
     </div>
@@ -695,8 +1242,6 @@ function masterGroupCardHtml(group) {
 
 function itemSubgroupHtml(item) {
   const lots = sortLotsByExpiry(item.item_lots);
-  const totalQuantity = lots.reduce((sum, l) => sum + Number(l.quantity), 0);
-  const lowStock = totalQuantity <= Number(item.low_stock_threshold);
 
   const lotsHtml = lots.length
     ? lots.map(lot => lotRowHtml(item, lot)).join("")
@@ -707,11 +1252,8 @@ function itemSubgroupHtml(item) {
       <div class="item-subgroup-header">
         <span class="item-subname">${escapeHtml(item.name)}</span>
         <span class="item-badges">
-          ${lowStock ? '<span class="tag warning">在庫少なめ</span>' : ""}
-          <button type="button" class="detail-btn" data-action="view-product-detail"
-            data-item-id="${item.id}" data-item-name="${escapeHtml(item.name)}"
-            data-product-master-id="${item.product_master_id || ""}"
-            data-low-stock-threshold="${item.low_stock_threshold}" data-unit="${escapeHtml(item.unit)}" aria-label="商品の詳細">
+          <button type="button" class="detail-btn" data-action="view-product-detail" data-mode="item"
+            data-item-id="${item.id}" data-item-name="${escapeHtml(item.name)}" data-unit="${escapeHtml(item.unit)}" aria-label="購入日・削除">
             <span class="material-symbols-rounded">info</span>
           </button>
         </span>

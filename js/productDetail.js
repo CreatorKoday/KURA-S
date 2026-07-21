@@ -25,8 +25,8 @@ import {
   FOOD_USAGE_OPTIONS,
   DAILY_USAGE_OPTIONS
 } from "./productMaster.js";
-import { loadItems } from "./items.js";
-import { syncShoppingListForItem, loadShoppingList } from "./shopping.js";
+import { loadItems, sortLotsByExpiry, formatExpiryLabel } from "./items.js";
+import { syncShoppingListForItem, syncShoppingListForMaster, loadShoppingList } from "./shopping.js";
 import { isContinuousUnit } from "./quantity.js";
 import { openQuantityPicker } from "./quantityPicker.js";
 
@@ -39,8 +39,13 @@ function hide(id) {
   if (!el.classList.contains("hidden")) el.classList.add("hidden");
 }
 
-let currentItem = null;   // { id, name }
-let currentMaster = null; // product_master 行 (未作成なら null)
+// mode: "master"(標準商品名=カード単位。商品属性+最低数量) / "item"(商品名単位。購入日+削除)
+//       / "fallback"(商品マスタが無い単独商品。従来通りすべてをまとめて扱う)
+let currentMode = null;
+let currentItem = null;    // { id, name, unit } (item/fallbackモード)
+let currentMaster = null;  // product_master 行 (masterモードは常にあり、fallbackモードは未作成ならnull)
+let currentMasterId = null; // masterモードで開いている product_master.id
+let thresholdCtx = null;   // { table: "items"|"product_master", id, value, unit } (最低数量の保存先。master/fallbackモードのみ)
 let editKeywords = [];
 
 // ---------- トースト(汎用) ----------
@@ -72,7 +77,9 @@ function renderView() {
   const icon = currentMaster.icon || getCategoryIcon(currentMaster.type, currentMaster.category);
   document.getElementById("pd-icon").textContent = icon;
   document.getElementById("pd-icon-value").textContent = icon;
-  document.getElementById("pd-item-name").textContent = currentItem.name;
+  // masterモードは特定の商品名を持たないため、商品名の見出しは表示せず標準商品名(下の行)だけにする
+  document.getElementById("pd-item-name").textContent = currentMode === "master" ? "" : currentItem.name;
+  document.getElementById("pd-item-name").classList.toggle("hidden", currentMode === "master");
   document.getElementById("pd-canonical-name").textContent = "標準商品名: " + currentMaster.canonical_name;
   document.getElementById("pd-canonical-reading").textContent = currentMaster.canonical_name_reading || "読み方未登録";
   hide("pd-canonical-reading"); // 商品を切り替えるたびに閉じた状態に戻す
@@ -228,47 +235,106 @@ document.getElementById("product-detail-save-btn").addEventListener("click", asy
   showToast("保存しました");
 });
 
-// ---------- 開閉 ----------
+// ---------- セクションの表示切り替え(モードごと) ----------
+// master: 標準商品名(カード)単位。商品属性+最低数量のみ(購入日・削除は商品名側のⓘに任せる)
+// item: 商品名単位。購入日(在庫ロット)+削除のみ(属性・最低数量はカード側の⚙️に任せる)
+// fallback: 商品マスタが無い単独商品。従来通りすべてまとめて表示する
 
-async function openProductDetail(itemId, itemName, productMasterId, lowStockThreshold, unit) {
-  currentItem = { id: itemId, name: itemName, lowStockThreshold: Number(lowStockThreshold) || 0, unit: unit || "" };
-  currentMaster = null;
+function applySectionVisibility(mode) {
+  const showThreshold = mode === "master" || mode === "fallback";
+  const showLots = mode === "item" || mode === "fallback";
+  const showDelete = mode === "item" || mode === "fallback";
 
-  show("product-detail-overlay");
+  document.getElementById("pd-threshold-section").classList.toggle("hidden", !showThreshold);
+  document.getElementById("pd-lots-section").classList.toggle("hidden", !showLots);
+  document.getElementById("product-detail-delete-btn").classList.toggle("hidden", !showDelete);
+
+  // 商品属性(表示/編集/未作成/読込中)は、いったんすべて隠してから
+  // モードごとの後続処理(renderView/show("product-detail-empty")など)で必要な分だけ出し直す。
+  // itemモードは商品属性を扱わないため、隠したままになる
   hide("product-detail-view");
   hide("product-detail-edit");
-  hide("product-detail-loading");
   hide("product-detail-empty");
-  document.getElementById("product-detail-create-message").textContent = "";
-  renderThresholdDisplay();
+  hide("product-detail-loading");
 
-  if (!productMasterId) {
-    show("product-detail-empty");
+  const titleEl = document.getElementById("product-detail-title");
+  titleEl.textContent = mode === "master" ? "商品属性の詳細" : mode === "item" ? "購入日・削除" : "商品の詳細";
+}
+
+// ---------- 開閉 ----------
+
+async function openProductDetail({ mode, itemId, itemName, unit, productMasterId, lowStockThreshold, thresholdUnit }) {
+  currentMode = mode;
+  currentItem = (mode === "item" || mode === "fallback") ? { id: itemId, name: itemName, unit: unit || "" } : null;
+  currentMaster = null;
+  currentMasterId = mode === "master" ? productMasterId : null;
+  thresholdCtx = null;
+
+  show("product-detail-overlay");
+  applySectionVisibility(mode);
+  document.getElementById("product-detail-create-message").textContent = "";
+
+  if (mode === "item") {
+    await loadAndRenderLots(itemId);
     return;
   }
 
+  if (mode === "fallback") {
+    thresholdCtx = { table: "items", id: itemId, value: Number(lowStockThreshold) || 0, unit: unit || "" };
+    renderThresholdDisplay();
+    await loadAndRenderLots(itemId);
+
+    if (!productMasterId) {
+      show("product-detail-empty");
+      return;
+    }
+
+    const { data: master, error } = await supabaseClient
+      .from("product_master")
+      .select("*")
+      .eq("id", productMasterId)
+      .maybeSingle();
+
+    // 取得待ちの間に閉じられた/別の商品の詳細に切り替わっていたら、表示の更新はしない
+    if (!currentItem || currentItem.id !== itemId) return;
+
+    if (error || !master) {
+      show("product-detail-empty");
+      return;
+    }
+
+    currentMaster = master;
+    renderView();
+    return;
+  }
+
+  // mode === "master"
   const { data: master, error } = await supabaseClient
     .from("product_master")
     .select("*")
     .eq("id", productMasterId)
     .maybeSingle();
 
-  // 取得待ちの間に閉じられた/別の商品の詳細に切り替わっていたら、表示の更新はしない
-  if (!currentItem || currentItem.id !== itemId) return;
+  if (currentMasterId !== productMasterId) return;
 
   if (error || !master) {
-    show("product-detail-empty");
+    console.error("商品マスタの取得に失敗:", error);
     return;
   }
 
   currentMaster = master;
+  thresholdCtx = { table: "product_master", id: master.id, value: Number(master.low_stock_threshold) || 0, unit: thresholdUnit || "個" };
+  renderThresholdDisplay();
   renderView();
 }
 
 function closeProductDetail() {
   hide("product-detail-overlay");
+  currentMode = null;
   currentItem = null;
   currentMaster = null;
+  currentMasterId = null;
+  thresholdCtx = null;
 }
 
 document.getElementById("product-detail-close-btn").addEventListener("click", closeProductDetail);
@@ -276,70 +342,127 @@ document.getElementById("product-detail-overlay").addEventListener("click", (e) 
   if (e.target.id === "product-detail-overlay") closeProductDetail();
 });
 
-// 在庫一覧の「詳細」ボタンから開く(カードは loadItems() のたびに再生成されるため委譲で拾う)
+// 在庫一覧の詳細/インフォメーションボタンから開く(カードは loadItems() のたびに再生成されるため委譲で拾う)
 document.addEventListener("click", (e) => {
   const btn = e.target.closest('[data-action="view-product-detail"]');
   if (!btn) return;
-  openProductDetail(btn.dataset.itemId, btn.dataset.itemName, btn.dataset.productMasterId || null, btn.dataset.lowStockThreshold, btn.dataset.unit);
+  openProductDetail({
+    mode: btn.dataset.mode,
+    itemId: btn.dataset.itemId || null,
+    itemName: btn.dataset.itemName || "",
+    unit: btn.dataset.unit || "",
+    productMasterId: btn.dataset.productMasterId || null,
+    lowStockThreshold: btn.dataset.lowStockThreshold,
+    thresholdUnit: btn.dataset.thresholdUnit || ""
+  });
 });
+
+// ---------- 在庫ロット(購入日) ----------
+// item/fallbackモードで、対象商品名(itemId)のロット一覧を購入日つきで表示する(読み取り専用。
+// 数量・賞味期限の増減は在庫確認画面から行うため、ここでは操作ボタンは置かない)
+
+function formatPurchaseDateLabel(purchaseDate) {
+  if (!purchaseDate) return "購入日不明";
+  const dt = new Date(purchaseDate + "T00:00:00");
+  return `購入日:${dt.getMonth() + 1}/${dt.getDate()}`;
+}
+
+function productDetailLotRowHtml(lot, unit) {
+  const { text: expiryText } = formatExpiryLabel(lot.expiry_date);
+  return `
+    <div class="product-detail-lot-row">
+      <span class="product-detail-lot-qty">${lot.quantity}${escapeHtml(unit)}</span>
+      <span class="product-detail-lot-expiry">${escapeHtml(expiryText)}</span>
+      <span class="product-detail-lot-purchase">${escapeHtml(formatPurchaseDateLabel(lot.purchase_date))}</span>
+    </div>
+  `;
+}
+
+async function loadAndRenderLots(itemId) {
+  const listEl = document.getElementById("pd-lots-list");
+  const { data: lots, error } = await supabaseClient
+    .from("item_lots")
+    .select("id, quantity, expiry_date, purchase_date")
+    .eq("item_id", itemId);
+
+  // 取得待ちの間に閉じられた/別の商品の詳細に切り替わっていたら、表示の更新はしない
+  if (!currentItem || currentItem.id !== itemId) return;
+
+  if (error) {
+    console.error("在庫ロットの取得に失敗:", error);
+    listEl.innerHTML = '<div class="empty-note">読み込みに失敗しました。</div>';
+    return;
+  }
+
+  const sorted = sortLotsByExpiry(lots || []);
+  listEl.innerHTML = sorted.length
+    ? sorted.map(lot => productDetailLotRowHtml(lot, currentItem.unit)).join("")
+    : '<div class="empty-note">在庫がありません。</div>';
+}
 
 // ---------- 在庫設定(最低数量) ----------
 // 在庫確認画面の数量増減([-][+]・タップでドラムロール)と同じ操作感にしている。
-// 増減幅は単位が個数系か定量系(g/mlなど)かで変える(在庫の数量調整と同じ判定)
+// 増減幅は単位が個数系か定量系(g/mlなど)かで変える(在庫の数量調整と同じ判定)。
+// 保存先は thresholdCtx.table で切り替わる(masterモード: product_master / fallbackモード: items)
 
 function renderThresholdDisplay() {
   document.getElementById("pd-threshold-display").innerHTML =
-    `${currentItem.lowStockThreshold}<span class="qty-unit">${escapeHtml(currentItem.unit)}</span>`;
+    `${thresholdCtx.value}<span class="qty-unit">${escapeHtml(thresholdCtx.unit)}</span>`;
 }
 
 function thresholdStep() {
-  return isContinuousUnit(currentItem && currentItem.unit) ? 100 : 1;
+  return isContinuousUnit(thresholdCtx && thresholdCtx.unit) ? 100 : 1;
 }
 
 async function persistThreshold(newValue) {
-  if (!currentItem) return;
-  const itemId = currentItem.id;
+  if (!thresholdCtx) return;
+  const { table, id } = thresholdCtx;
   const value = Math.max(0, Math.min(9999, Math.round(newValue) || 0));
 
   const { error } = await supabaseClient
-    .from("items")
+    .from(table)
     .update({ low_stock_threshold: value, updated_at: new Date().toISOString() })
-    .eq("id", itemId);
+    .eq("id", id);
   if (error) {
     console.error("最低数量の更新に失敗:", error);
     return;
   }
-  await syncShoppingListForItem(itemId);
+
+  if (table === "product_master") {
+    await syncShoppingListForMaster(id);
+  } else {
+    await syncShoppingListForItem(id);
+  }
 
   // 更新待ちの間に閉じられた/別の商品に切り替わっていたら、表示の更新はしない
-  if (!currentItem || currentItem.id !== itemId) return;
-  currentItem.lowStockThreshold = value;
+  if (!thresholdCtx || thresholdCtx.table !== table || thresholdCtx.id !== id) return;
+  thresholdCtx.value = value;
   renderThresholdDisplay();
   showToast("最低数量を更新しました");
 }
 
 document.getElementById("pd-threshold-minus").addEventListener("click", () => {
-  if (!currentItem) return;
-  persistThreshold(currentItem.lowStockThreshold - thresholdStep());
+  if (!thresholdCtx) return;
+  persistThreshold(thresholdCtx.value - thresholdStep());
 });
 document.getElementById("pd-threshold-plus").addEventListener("click", () => {
-  if (!currentItem) return;
-  persistThreshold(currentItem.lowStockThreshold + thresholdStep());
+  if (!thresholdCtx) return;
+  persistThreshold(thresholdCtx.value + thresholdStep());
 });
 document.getElementById("pd-threshold-display").addEventListener("click", () => {
-  if (!currentItem) return;
+  if (!thresholdCtx) return;
   openQuantityPicker({
-    initialValue: currentItem.lowStockThreshold,
-    unit: currentItem.unit,
+    initialValue: thresholdCtx.value,
+    unit: thresholdCtx.unit,
     title: "最低数量を設定",
     onConfirm: (value) => persistThreshold(value)
   });
 });
 
-// ---------- 商品の削除(在庫の全ロットも一緒に削除される) ----------
+// ---------- 商品の削除(在庫の全ロットも一緒に削除される。item/fallbackモードのみ) ----------
 
 document.getElementById("product-detail-delete-btn").addEventListener("click", async () => {
-  if (!currentItem) return;
+  if (!currentItem || currentMode === "master") return;
   if (!confirm("この商品を削除しますか?登録されている在庫(すべてのロット)も削除されます。")) return;
 
   const { error } = await supabaseClient.from("items").delete().eq("id", currentItem.id);
@@ -384,6 +507,22 @@ async function createOrRegenerateProductMaster(itemId, itemName) {
 
   if (currentItem && currentItem.id === itemId) {
     currentMaster = master;
+
+    // 最低数量の保存先を items からこの商品マスタへ切り替える。新規作成した商品マスタなら、
+    // それまで items 側に設定していた値をそのまま引き継ぐ(既存マスタを再利用した場合は
+    // 他の商品名と共有中の値を上書きしないよう、そのマスタの値をそのまま使う)
+    if (thresholdCtx && thresholdCtx.table === "items") {
+      if (generatedNew && thresholdCtx.value > 0) {
+        await supabaseClient
+          .from("product_master")
+          .update({ low_stock_threshold: thresholdCtx.value, updated_at: new Date().toISOString() })
+          .eq("id", master.id);
+        master.low_stock_threshold = thresholdCtx.value;
+      }
+      thresholdCtx = { table: "product_master", id: master.id, value: Number(master.low_stock_threshold) || 0, unit: thresholdCtx.unit };
+      renderThresholdDisplay();
+    }
+
     renderView();
   }
   showAppNotice(generatedNew ? "AIが商品属性を生成しました" : "既存の商品属性を利用しました");

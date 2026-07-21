@@ -3,6 +3,173 @@
    在庫一覧専用
    ========================================================== */
 
+/* 在庫確認画面上部の「フィルター」「並び替え」ボタン(全幅ではなく内容幅の控えめなボタン) */
+.inventory-toolbar { display: flex; gap: 8px; margin-bottom: 12px; }
+
+.inventory-filter-btn {
+  width: auto; height: 40px;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 0 16px; margin: 0;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  font-size: 13px; font-weight: 700;
+}
+
+.inventory-filter-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+.inventory-filter-btn .material-symbols-rounded { font-size: 18px; }
+
+/* 絞り込み・並び替え、共通の2ペインオーバーレイ(Amazonアプリの商品検索フィルター風)。
+   他のシートより縦に長いので固定の高さを持つ */
+.two-pane-overlay {
+  position: fixed; inset: 0;
+  background: rgba(20, 14, 45, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: flex-end; justify-content: center;
+  z-index: 1000;
+  animation: fadeIn .2s ease;
+}
+
+.two-pane-overlay.hidden { display: none; }
+
+.two-pane-sheet {
+  background: var(--surface);
+  border-radius: 28px 28px 0 0;
+  width: 100%; max-width: 460px;
+  height: 78vh;
+  display: flex; flex-direction: column;
+  box-shadow: 0 -20px 50px rgba(25,17,66,0.2);
+  animation: fadeSlideIn .25s ease;
+  padding: 8px 20px 0;
+}
+
+/* 並び替えだけにある、階層(カテゴリ/サブカテゴリ/カード/カード内)を選ぶ横並びタブ */
+.sort-level-tabs {
+  display: flex; gap: 6px;
+  padding: 4px 0 10px;
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
+.sort-level-tab {
+  flex-shrink: 0;
+  padding: 7px 14px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-1);
+  color: var(--text-secondary);
+  font-size: 12px; font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.sort-level-tab.active { background: var(--gradient-primary); color: #fff; }
+
+/* 「すべて」タブは他と少し色を変えて目立たせる(一括設定であることが分かるように) */
+.sort-level-tab.all-tab { background: var(--primary-soft); color: var(--primary); }
+
+.sort-level-tab.all-tab.active { background: var(--gradient-primary); color: #fff; }
+
+.two-pane-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  margin: 0 -20px;
+  border-top: 1px solid var(--border);
+}
+
+.two-pane-types {
+  width: 38%; flex-shrink: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  background: var(--bg-1);
+}
+
+.filter-type-row {
+  padding: 16px 14px;
+  font-size: 13px; font-weight: 600; color: var(--text-secondary);
+  border-left: 3px solid transparent;
+  cursor: pointer;
+}
+
+.filter-type-row.active {
+  background: var(--surface);
+  color: var(--primary);
+  border-left-color: var(--primary);
+}
+
+.two-pane-options {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 16px;
+}
+
+.filter-option-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 2px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px; color: var(--text);
+  cursor: pointer;
+}
+
+.filter-option-row:last-child { border-bottom: none; }
+
+.filter-option-checkbox {
+  flex-shrink: 0;
+  width: 21px; height: 21px;
+  border-radius: 6px;
+  border: 1.5px solid var(--border-strong);
+  display: flex; align-items: center; justify-content: center;
+  color: transparent;
+}
+
+.filter-option-checkbox .material-symbols-rounded { font-size: 15px; }
+
+.filter-option-checkbox.checked {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+/* 選択中の内容を説明する案内文(例:「期限が近い順」「[飲料] > [清涼飲料水]」) */
+.inventory-selection-summary {
+  flex-shrink: 0;
+  font-size: 12px; color: var(--text-secondary);
+  padding: 10px 0 0;
+}
+
+.inventory-selection-summary.hidden { display: none; }
+
+/* 並び替えだけにある、案内文の隣の小さな「デフォルトに設定」ボタン */
+#inventory-sort-summary-row {
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 0 0 4px;
+}
+
+#inventory-sort-summary-row .inventory-selection-summary { padding: 10px 0 0; flex: 1; min-width: 0; }
+
+.inventory-sort-default-btn {
+  flex-shrink: 0;
+  width: auto; height: auto;
+  padding: 6px 12px; margin: 10px 0 0;
+  font-size: 11px; font-weight: 700;
+  background: var(--bg-1); color: var(--primary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+}
+
+.inventory-sort-default-btn:hover { border-color: var(--primary); }
+
+.two-pane-actions {
+  flex-shrink: 0;
+  display: flex; gap: 10px;
+  padding: 14px 20px calc(14px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+}
+
+.two-pane-actions button { margin: 0; }
+
 h3.group-heading {
   font-size: 11px;
   font-weight: 700;
@@ -100,7 +267,8 @@ h4.group-subheading {
 
 .qty-unit { font-size: 11px; font-weight: 600; color: var(--text-tertiary); margin-left: 3px; }
 
-.filter-row { display: flex; gap: 8px; margin-bottom: 12px; }
+/* カテゴリー/サブカテゴリーフィルター(絞り込みオーバーレイ)と掛け合わせる商品名検索欄 */
+#inventory-search { margin-bottom: 12px; }
 
 .item-subgroup { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
 

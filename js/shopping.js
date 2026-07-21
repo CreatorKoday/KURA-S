@@ -5,18 +5,27 @@
 import { supabaseClient } from "./config.js";
 import { shoppingListEl } from "./elements.js";
 import { escapeHtml } from "./utils.js";
+import { computeCombinedStockQuantity } from "./quantity.js";
 
 // 在庫ロットの合計数量としきい値を見て、買い物リストへの追加/削除を自動で行う。
-// low_stock_threshold が 0 の商品は、在庫が0でも自動追加の対象にしない
+// 商品マスタがある商品は、同じ標準商品名(product_master)を共有するすべての商品名の
+// 在庫合計で判定する(syncShoppingListForMaster)。商品マスタが無い商品は、
+// 従来どおりこの商品(items)単独の在庫で判定する。
+// low_stock_threshold が 0 の場合は、在庫が0でも自動追加の対象にしない
 // (最低数量を「管理しない」という意思表示として扱う)
 export async function syncShoppingListForItem(itemId) {
   const { data: item, error: itemError } = await supabaseClient
     .from("items")
-    .select("id, name, low_stock_threshold")
+    .select("id, name, low_stock_threshold, product_master_id")
     .eq("id", itemId)
     .single();
   if (itemError || !item) {
     console.error("商品情報の取得に失敗(買い物リスト同期):", itemError);
+    return;
+  }
+
+  if (item.product_master_id) {
+    await syncShoppingListForMaster(item.product_master_id);
     return;
   }
 
@@ -50,6 +59,77 @@ export async function syncShoppingListForItem(itemId) {
     const { error: insertError } = await supabaseClient.from("shopping_list").insert({
       item_id: item.id,
       name: item.name,
+      quantity_needed: 1
+    });
+    if (insertError) console.error("買い物リストへの追加に失敗:", insertError);
+  } else if (!isLow && existing) {
+    const { error: deleteError } = await supabaseClient.from("shopping_list").delete().eq("id", existing.id);
+    if (deleteError) console.error("買い物リストからの削除に失敗:", deleteError);
+  }
+}
+
+// 標準商品名(product_master)単位の低在庫判定。同じ標準商品名を共有するすべての
+// 商品名(items)の在庫を合算し(個数系・定量系の混在はcomputeCombinedStockQuantityで換算)、
+// product_master.low_stock_threshold と比較する。買い物リストへは標準商品名で追加する
+export async function syncShoppingListForMaster(masterId) {
+  const { data: master, error: masterError } = await supabaseClient
+    .from("product_master")
+    .select("id, canonical_name, low_stock_threshold")
+    .eq("id", masterId)
+    .single();
+  if (masterError || !master) {
+    console.error("商品マスタの取得に失敗(買い物リスト同期):", masterError);
+    return;
+  }
+
+  const { data: siblingItems, error: itemsError } = await supabaseClient
+    .from("items")
+    .select("id, unit")
+    .eq("product_master_id", masterId);
+  if (itemsError) {
+    console.error("同じ標準商品名の商品取得に失敗(買い物リスト同期):", itemsError);
+    return;
+  }
+
+  const itemIds = (siblingItems || []).map(i => i.id);
+  const quantityByItemId = {};
+  if (itemIds.length > 0) {
+    const { data: lots, error: lotsError } = await supabaseClient
+      .from("item_lots")
+      .select("item_id, quantity")
+      .in("item_id", itemIds);
+    if (lotsError) {
+      console.error("在庫ロットの取得に失敗(買い物リスト同期):", lotsError);
+      return;
+    }
+    (lots || []).forEach(lot => {
+      quantityByItemId[lot.item_id] = (quantityByItemId[lot.item_id] || 0) + Number(lot.quantity);
+    });
+  }
+
+  const entries = (siblingItems || []).map(i => ({ quantity: quantityByItemId[i.id] || 0, unit: i.unit }));
+  const combinedQuantity = computeCombinedStockQuantity(entries);
+
+  const { data: existingList, error: findError } = await supabaseClient
+    .from("shopping_list")
+    .select("id")
+    .eq("product_master_id", masterId)
+    .eq("is_purchased", false)
+    .limit(1);
+  if (findError) {
+    console.error("買い物リストの検索に失敗:", findError);
+    return;
+  }
+  const existing = existingList && existingList.length > 0 ? existingList[0] : null;
+
+  const threshold = Number(master.low_stock_threshold);
+  const isLow = threshold > 0 && combinedQuantity < threshold;
+
+  if (isLow && !existing) {
+    const { error: insertError } = await supabaseClient.from("shopping_list").insert({
+      item_id: null,
+      product_master_id: master.id,
+      name: master.canonical_name,
       quantity_needed: 1
     });
     if (insertError) console.error("買い物リストへの追加に失敗:", insertError);
@@ -115,16 +195,19 @@ function renderShoppingList(rows) {
     return;
   }
 
-  shoppingListEl.innerHTML = rows.map(row => `
-    <div class="shopping-card ${row.item_id ? "" : "manual"}">
+  shoppingListEl.innerHTML = rows.map(row => {
+    const isLinked = row.item_id || row.product_master_id;
+    return `
+    <div class="shopping-card ${isLinked ? "" : "manual"}">
       <button class="check-btn" data-action="mark-purchased" data-id="${row.id}" data-item-id="${row.item_id || ""}" data-quantity="${row.quantity_needed}" data-name="${escapeHtml(row.name)}"><span class="material-symbols-rounded">check</span></button>
       <div class="shopping-info">
         <div class="shopping-name">${escapeHtml(row.name)}</div>
-        <div class="shopping-meta">数量 ${row.quantity_needed}${row.item_id ? " ・ 在庫連動" : ""}</div>
+        <div class="shopping-meta">数量 ${row.quantity_needed}${isLinked ? " ・ 在庫連動" : ""}</div>
       </div>
       <button class="del-btn" data-action="remove-shopping-item" data-id="${row.id}"><span class="material-symbols-rounded">delete</span></button>
     </div>
-  `).join("");
+  `;
+  }).join("");
 
 }
 

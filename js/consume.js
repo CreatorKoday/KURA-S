@@ -16,7 +16,7 @@ import { loadItems, persistLotQty, sortLotsByExpiry, formatExpiryLabel } from ".
 import { fileToBase64, identifyProductsWithAI } from "./aiPhoto.js";
 import { isContinuousUnit } from "./quantity.js";
 import { openQuantityPicker } from "./quantityPicker.js";
-import { getCategoryReading, getCategoryIcon } from "./productMaster.js";
+import { getCategoryIcon, computeItemSearchScore } from "./productMaster.js";
 
 const consumeOverlayEl = document.getElementById("consume-overlay");
 const consumeSearchInput = document.getElementById("consume-search");
@@ -245,45 +245,9 @@ document.getElementById("consume-photo-input").addEventListener("change", async 
 
 // ---------- 手動での消費登録(検索して選ぶ) ----------
 //
-// 検索対象は [商品名]>[標準商品名]>[サブカテゴリー]>[カテゴリー]>[検索キーワード] の
-// 優先度で、それぞれ部分一致させる(ひらがな読みを持つ項目はひらがな入力でも一致する)。
-// 一致した項目のうちもっとも優先度が高いものを基準に検索結果を並べ替える。
-const FIELD_PRIORITY = { name: 5, canonical: 4, subCategory: 3, category: 2, keyword: 1 };
-
-function computeMatchScore(item, term) {
-  const t = term.toLowerCase();
-  const master = item.product_master;
-  let score = 0;
-
-  if ((item.name || "").toLowerCase().includes(t)) score = Math.max(score, FIELD_PRIORITY.name);
-
-  if (master) {
-    if ((master.canonical_name || "").toLowerCase().includes(t) || (master.canonical_name_reading || "").includes(t)) {
-      score = Math.max(score, FIELD_PRIORITY.canonical);
-    }
-    if ((master.sub_category || "").toLowerCase().includes(t) || (master.sub_category_reading || "").includes(t)) {
-      score = Math.max(score, FIELD_PRIORITY.subCategory);
-    }
-  }
-
-  const category = (master && master.category) || item.category;
-  if (category && (category.toLowerCase().includes(t) || getCategoryReading(category).includes(t))) {
-    score = Math.max(score, FIELD_PRIORITY.category);
-  }
-
-  if (master && master.search_keywords) {
-    const keywords = master.search_keywords || [];
-    const readings = master.search_keywords_reading || [];
-    for (let i = 0; i < keywords.length; i++) {
-      if ((keywords[i] || "").toLowerCase().includes(t) || (readings[i] || "").includes(t)) {
-        score = Math.max(score, FIELD_PRIORITY.keyword);
-        break;
-      }
-    }
-  }
-
-  return score;
-}
+// 検索対象・優先度([商品名]>[標準商品名]>[サブカテゴリー]>[カテゴリー]>[検索キーワード]、
+// ひらがな読み対応)のスコアリングは、在庫確認画面の絞り込み検索と共有するため
+// js/productMaster.js の computeItemSearchScore に集約している
 
 // 商品マスタのicon(手動設定)→無ければカテゴリー既定の絵文字、の順で決める。
 // 商品マスタが無い商品は items.category に食品/日用品(種別)が入っているため、
@@ -357,7 +321,7 @@ async function runConsumeSearch(term) {
   }
 
   const scored = data
-    .map(item => ({ item, score: computeMatchScore(item, term) }))
+    .map(item => ({ item, score: computeItemSearchScore(item, term) }))
     .filter(s => s.score > 0)
     .sort((a, b) => b.score - a.score || a.item.name.localeCompare(b.item.name, "ja"));
 
