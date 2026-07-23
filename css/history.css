@@ -148,22 +148,32 @@
   transform: translate(-50%, -50%) rotate(90deg);
   transform-origin: center center;
   display: flex; flex-direction: column;
-  /* ノッチ・ステータスバー・画面角の丸みに文字やボタンが隠れないよう、
-     基本の余白にセーフエリア分を追加する(viewport-fit=cover指定済みのため
-     env()は実機で実際の値を返す) */
-  padding: calc(10px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left));
   box-sizing: border-box;
+  /* 時計回りに90度回転しているため、回転前のleft/top/right/bottomは実際の画面の
+     top/right/bottom/leftにそれぞれ対応する(回転前の「上」は画面では「右」になる、
+     というように1つずつずれる)。ノッチ・ステータスバー(画面の物理的な上端。
+     iPhone14では47pt)を避けるため、回転前の「左」に大きめの余白を確保する
+     (env()が実機で正しく取れない場合に備え、実測値を踏まえた固定値もmax()で下限にする) */
+  padding-top: max(18px, calc(10px + env(safe-area-inset-right)));
+  padding-right: max(28px, calc(10px + env(safe-area-inset-bottom)));
+  padding-bottom: max(18px, calc(10px + env(safe-area-inset-left)));
+  padding-left: max(55px, calc(10px + env(safe-area-inset-top)));
 }
 
 /* 端末の自動回転が有効な場合、実際に横向きにするとブラウザのビューポート自体が
    横長になる(この場合は上の回転を適用すると二重に回転してしまう)。ビューポートが
-   既に横長(=実際に回転済み)なら、回転を掛けずそのまま画面いっぱいに表示する */
+   既に横長(=実際に回転済み)なら、回転を掛けずそのまま画面いっぱいに表示し、
+   セーフエリアの対応関係も回転していない通常のtop/right/bottom/leftに戻す */
 @media (orientation: landscape) {
   #history-expand-rotator {
     position: static;
     width: 100%;
     height: 100%;
     transform: none;
+    padding-top: max(16px, calc(10px + env(safe-area-inset-top)));
+    padding-right: max(16px, calc(10px + env(safe-area-inset-right)));
+    padding-bottom: max(16px, calc(10px + env(safe-area-inset-bottom)));
+    padding-left: max(16px, calc(10px + env(safe-area-inset-left)));
   }
 }
 
