@@ -148,7 +148,10 @@
   transform: translate(-50%, -50%) rotate(90deg);
   transform-origin: center center;
   display: flex; flex-direction: column;
-  padding: 16px;
+  /* ノッチ・ステータスバー・画面角の丸みに文字やボタンが隠れないよう、
+     基本の余白にセーフエリア分を追加する(viewport-fit=cover指定済みのため
+     env()は実機で実際の値を返す) */
+  padding: calc(10px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left));
   box-sizing: border-box;
 }
 
@@ -166,16 +169,10 @@
 
 .history-expand-header {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
 }
 
 .history-expand-header .view-title { margin: 0; }
-
-.history-expand-hint {
-  margin: 0 0 10px;
-  font-size: 12px;
-  color: var(--text-tertiary);
-}
 
 #history-expand-rotator .history-table-wrap {
   flex: 1;
