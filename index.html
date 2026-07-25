@@ -30,6 +30,7 @@
 <link rel="stylesheet" href="css/history.css">
 <link rel="stylesheet" href="css/summary.css">
 <link rel="stylesheet" href="css/balanceSheet.css">
+<link rel="stylesheet" href="css/navRadial.css">
 </head>
 <body>
 
@@ -72,6 +73,10 @@
       <div id="app-notice" class="app-notice hidden"></div>
     </div>
 
+    <!-- AI写真判定の判定失敗メッセージ(判定結果がまだ無く商品登録オーバーレイを開く前の段階で表示するため、
+         特定のビュー・オーバーレイの中には置かず、ここに置いて常に表示できるようにしている) -->
+    <div id="add-message"></div>
+
     <div id="view-home" class="view">
 
       <!-- ① 挨拶・日付(表示内容は home.js が設定する) -->
@@ -83,58 +88,6 @@
         <span class="home-greeting-icon material-symbols-rounded">auto_awesome</span>
       </div>
 
-      <!-- ② メインアクション: 登録・消費の2枚のみ表示。タップで展開し、その中でAI/手動を選ぶ -->
-      <div class="action-menu-grid home-main-actions">
-        <details class="home-action-group">
-          <summary class="home-action-card register">
-            <span class="home-action-card-icon material-symbols-rounded">add_circle</span>
-            <span class="home-action-card-text">
-              <span class="home-action-card-title">商品を登録</span>
-              <span class="home-action-card-sub">AI・手動から選べます</span>
-            </span>
-            <span class="home-action-card-chevron material-symbols-rounded">expand_more</span>
-          </summary>
-          <div class="home-action-sub-grid" id="register-sub-grid">
-            <button class="action-menu-card register" data-target="ai">
-              <span class="action-menu-icon"><span class="material-symbols-rounded">photo_camera</span></span>
-              <span class="action-menu-label">AI</span>
-            </button>
-            <button class="action-menu-card register" data-target="manual">
-              <span class="action-menu-icon"><span class="material-symbols-rounded">edit</span></span>
-              <span class="action-menu-label">手動</span>
-            </button>
-          </div>
-
-          <input type="file" accept="image/*" capture="environment" id="photo-input" class="hidden">
-          <button type="button" id="photo-btn" class="hidden">写真を撮影する</button>
-        </details>
-
-        <details class="home-action-group">
-          <summary class="home-action-card consume">
-            <span class="home-action-card-icon material-symbols-rounded">remove_circle</span>
-            <span class="home-action-card-text">
-              <span class="home-action-card-title">商品を消費</span>
-              <span class="home-action-card-sub">AI・手動から選べます</span>
-            </span>
-            <span class="home-action-card-chevron material-symbols-rounded">expand_more</span>
-          </summary>
-          <div class="home-action-sub-grid" id="consume-sub-grid">
-            <button class="action-menu-card consume" data-target="consume-ai">
-              <span class="action-menu-icon"><span class="material-symbols-rounded">photo_camera</span></span>
-              <span class="action-menu-label">AI</span>
-            </button>
-            <button class="action-menu-card consume" data-target="consume-manual">
-              <span class="action-menu-icon"><span class="material-symbols-rounded">edit</span></span>
-              <span class="action-menu-label">手動</span>
-            </button>
-          </div>
-
-          <input type="file" accept="image/*" capture="environment" id="consume-photo-input" class="hidden">
-          <button type="button" id="consume-photo-btn" class="hidden">写真を撮影する</button>
-        </details>
-      </div>
-
-      <div id="add-message" style="margin:14px 0;"></div>
 
       <!-- ③ 賞味期限のお知らせ(現在はダミー表示) -->
       <p class="section-label" style="margin-top:28px;">賞味期限のお知らせ</p>
@@ -166,11 +119,11 @@
           <span class="insight-title">AIレシピ</span>
           <span class="insight-desc">近日公開</span>
         </div>
-        <div class="insight-card muted">
-          <span class="insight-icon"><span class="material-symbols-rounded">groups</span></span>
-          <span class="insight-title">家族共有</span>
-          <span class="insight-desc">近日公開</span>
-        </div>
+        <button type="button" class="insight-card" id="expense-menu-open-btn">
+          <span class="insight-icon"><span class="material-symbols-rounded">payments</span></span>
+          <span class="insight-title">支出管理</span>
+          <span class="insight-desc">見る</span>
+        </button>
         <button type="button" class="insight-card" id="history-open-btn">
           <span class="insight-icon"><span class="material-symbols-rounded">history</span></span>
           <span class="insight-title">購入履歴</span>
@@ -207,14 +160,6 @@
         <button type="button" id="history-sort-btn" class="inventory-filter-btn">
           <span class="material-symbols-rounded">swap_vert</span>
           <span>並び替え</span>
-        </button>
-        <button type="button" id="summary-open-btn" class="inventory-filter-btn">
-          <span class="material-symbols-rounded">calendar_month</span>
-          <span>サマリー</span>
-        </button>
-        <button type="button" id="balance-open-btn" class="inventory-filter-btn">
-          <span class="material-symbols-rounded">balance</span>
-          <span>収支表</span>
         </button>
       </div>
       <div class="history-table-wrap">
@@ -264,14 +209,35 @@
       </div>
     </div>
 
-    <!-- 購入・消費のサマリー(月間カレンダー)。購入履歴ページの「サマリー」ボタンから開く、
-         在庫確認と同じ独立ページ(下部ナビには無いため、戻るボタンで購入履歴へ戻す) -->
+    <!-- 支出管理メニュー。ホーム画面の「支出管理」カードから開く独立ページ
+         (下部ナビには無いため、戻るボタンでホームへ戻す)。表示する集計表の一覧は
+         js/expenseMenu.jsのEXPENSE_REPORT_DEFS配列で定義しており、今後表の種類を
+         増やす場合はこの配列に定義を1つ足すだけでよい構造にしている -->
+    <div id="view-expense-menu" class="view hidden">
+      <div class="history-title-row">
+        <button type="button" class="modal-close-btn" id="expense-menu-back-btn" aria-label="ホームに戻る">
+          <span class="material-symbols-rounded">arrow_back</span>
+        </button>
+        <h2 class="view-title">支出管理</h2>
+      </div>
+      <div class="insight-grid" id="expense-menu-list"></div>
+    </div>
+
+    <!-- 購入・消費のサマリー(月間カレンダー)。支出管理メニューの「日別カレンダー」ボタンから
+         開く、在庫確認と同じ独立ページ(下部ナビには無いため、戻るボタンで支出管理メニューへ戻す)。
+         購入履歴のフィルター(appliedHistoryFilters)とは独立した、このページ専用のフィルターを持つ -->
     <div id="view-summary" class="view hidden">
       <div class="history-title-row">
-        <button type="button" class="modal-close-btn" id="summary-back-btn" aria-label="購入履歴に戻る">
+        <button type="button" class="modal-close-btn" id="summary-back-btn" aria-label="支出管理に戻る">
           <span class="material-symbols-rounded">arrow_back</span>
         </button>
         <h2 class="view-title">サマリー</h2>
+      </div>
+      <div class="inventory-toolbar">
+        <button type="button" id="summary-filter-btn" class="inventory-filter-btn">
+          <span class="material-symbols-rounded">tune</span>
+          <span class="inventory-filter-btn-label">フィルター</span>
+        </button>
       </div>
       <div class="summary-calendar-header">
         <button type="button" id="summary-cal-prev" aria-label="前の月"><span class="material-symbols-rounded">chevron_left</span></button>
@@ -279,6 +245,27 @@
         <button type="button" id="summary-cal-next" aria-label="次の月"><span class="material-symbols-rounded">chevron_right</span></button>
       </div>
       <div class="summary-calendar-grid" id="summary-calendar-grid"></div>
+    </div>
+
+    <!-- サマリー専用の絞り込みフィルター。購入履歴のフィルター(#history-filter-overlay)と
+         同じAmazon風2ペイン構成・同じ5種類(日付・種別・標準商品名・区分・価格)だが、
+         appliedHistoryFiltersとは別の独立した状態(appliedSummaryFilters)を持つ -->
+    <div id="summary-filter-overlay" class="two-pane-overlay hidden">
+      <div id="summary-filter-sheet" class="two-pane-sheet">
+        <div class="accordion-panel-header">
+          <h2 style="margin:0;">絞り込み</h2>
+          <button type="button" class="modal-close-btn" id="summary-filter-close-btn"><span class="material-symbols-rounded">close</span></button>
+        </div>
+        <div id="summary-filter-body" class="two-pane-body">
+          <div id="summary-filter-types" class="two-pane-types"></div>
+          <div id="summary-filter-options" class="two-pane-options"></div>
+        </div>
+        <div id="summary-filter-summary" class="inventory-selection-summary hidden"></div>
+        <div id="summary-filter-actions" class="two-pane-actions">
+          <button type="button" class="btn-secondary" id="summary-filter-clear-btn">フィルターを解除</button>
+          <button type="button" class="btn-primary" id="summary-filter-apply-btn">結果を表示</button>
+        </div>
+      </div>
     </div>
 
     <!-- サマリーの年月選択。消費期限カレンダーの年月選択(#calendar-overlay)と同じく、
@@ -295,11 +282,11 @@
       </div>
     </div>
 
-    <!-- 在庫収支表(貸借対照表風)。購入履歴ページの「収支表」ボタンから開く、
-         在庫確認と同じ独立ページ(下部ナビには無いため、戻るボタンで購入履歴へ戻す) -->
+    <!-- 在庫収支表(貸借対照表風)。支出管理メニューの「月間集計B/S」ボタンから開く、
+         在庫確認と同じ独立ページ(下部ナビには無いため、戻るボタンで支出管理メニューへ戻す) -->
     <div id="view-balance" class="view hidden">
       <div class="history-title-row">
-        <button type="button" class="modal-close-btn" id="balance-back-btn" aria-label="購入履歴に戻る">
+        <button type="button" class="modal-close-btn" id="balance-back-btn" aria-label="支出管理に戻る">
           <span class="material-symbols-rounded">arrow_back</span>
         </button>
         <h2 class="view-title">在庫収支表</h2>
@@ -367,10 +354,32 @@
     </div>
 
     <div class="nav-bar">
-      <button class="nav-btn" data-view="home"><span class="material-symbols-rounded">home</span><span>ホーム</span></button>
-      <button class="nav-btn" data-view="shopping"><span class="material-symbols-rounded">shopping_cart</span><span>買い物</span></button>
-      <button class="nav-btn" data-view="inventory"><span class="material-symbols-rounded">inventory_2</span><span>在庫</span></button>
+      <div class="nav-bar-side">
+        <button class="nav-btn" data-view="home"><span class="material-symbols-rounded">home</span><span>ホーム</span></button>
+        <button class="nav-btn" data-view="shopping"><span class="material-symbols-rounded">shopping_cart</span><span>買い物</span></button>
+      </div>
+      <div class="nav-bar-side">
+        <button class="nav-btn" data-view="inventory"><span class="material-symbols-rounded">inventory_2</span><span>在庫</span></button>
+      </div>
     </div>
+
+    <!-- 登録・消費の中央円形メニュー。PayPayの「支払う」ボタンのように、ナビバー中央から
+         はみ出して常時表示する小さいアイコンボタン(#nav-radial-btn、タップしても消えない)と、
+         タップするたびに開閉するトグル式の半円メニュー(#nav-radial-expand)の2つに分かれている。
+         半円の中は choose(登録/消費)→method(AI/手動)と中身を差し替えながら選択を進め、
+         最終的に既存のAI/手動それぞれの動作を呼び出す -->
+    <div id="nav-radial-backdrop" class="hidden"></div>
+    <div id="nav-radial-expand" class="nav-radial-expand hidden">
+      <div id="nav-radial-content" class="nav-radial-content"></div>
+    </div>
+    <div id="nav-radial-btn" class="nav-radial-btn" role="button" tabindex="0" aria-label="登録・消費">
+      <span class="nav-radial-idle-icon"><span class="material-symbols-rounded">swap_vert</span></span>
+    </div>
+
+    <input type="file" accept="image/*" capture="environment" id="photo-input" class="hidden">
+    <button type="button" id="photo-btn" class="hidden">写真を撮影する</button>
+    <input type="file" accept="image/*" capture="environment" id="consume-photo-input" class="hidden">
+    <button type="button" id="consume-photo-btn" class="hidden">写真を撮影する</button>
 
   </div>
 </div>

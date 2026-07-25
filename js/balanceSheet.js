@@ -1,7 +1,7 @@
 // ==========================================================
 // 在庫収支表(貸借対照表風)ページ
 //
-// 購入履歴ページの「収支表」ボタンから開く。item_history を月単位で集計し、
+// 支出管理メニュー(js/expenseMenu.js)の「月間集計B/S」から開く。item_history を月単位で集計し、
 // 食品/日用品ごとに「前月繰越・今月購入・今月消費(貸方)」と、そこから自動計算
 // した「今月末在庫(借方)」を左右2カラムで表示する。
 //
@@ -153,10 +153,11 @@ function applyBalanceYearMonthSelection() {
 balanceYearSelect.addEventListener("change", applyBalanceYearMonthSelection);
 balanceMonthSelect.addEventListener("change", applyBalanceYearMonthSelection);
 
-document.getElementById("balance-open-btn").addEventListener("click", () => {
+// 支出管理メニューから呼び出す入口。js/expenseMenu.jsのEXPENSE_REPORT_DEFSがこの関数を参照する
+export function openBalanceSheetPage() {
   switchView("balance");
   balanceViewDate = new Date();
   closeBalanceYearMonthOverlay();
   loadBalanceSheet();
-});
-document.getElementById("balance-back-btn").addEventListener("click", () => switchView("history"));
+}
+document.getElementById("balance-back-btn").addEventListener("click", () => switchView("expense-menu"));

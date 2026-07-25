@@ -1,39 +1,11 @@
 // ==========================================================
-// ホーム画面: 「商品を登録」「商品を消費」の各アコーディオン内で、AI/手動の2ボタンを扱う。
+// ホーム画面: 挨拶・日付の表示のみを行う。
 //
-// ・登録のAI/消費のAI: ボタンやウィンドウを表示せず、直接カメラ/写真選択を起動する。
-// ・登録の手動/消費の手動: どちらも各機能側の共通オーバーレイを開く
-//   (このファイルでは開くきっかけを渡すだけで、中身の表示・入力・確定はitems.js/aiPhoto.js/consume.jsが持つ)。
-//
-// 【重要】このファイルは見た目・表示切り替えの制御のみを行う。
-// photo-btn / add-item-btn / consume-photo-btn などは、aiPhoto.js / items.js / consume.js に
-// 元々あるイベントリスナーがそのまま動作する(ここでは追加のリスナーを乗せて表示切り替えを制御するだけ)。
+// 「商品を登録」「商品を消費」(AI/手動)は、ナビバー中央の円形メニュー
+// (js/navRadial.js)に移設済み。
 // ==========================================================
 
-import { openRegisterManualOverlay, closeRegisterOverlay } from "./items.js";
-import { openConsumeSearchOverlay } from "./consume.js";
-
-// ---------- 商品を登録 ----------
-
-function openRegisterAi() {
-  document.getElementById("photo-btn").click();
-}
-
-// ---------- 商品を消費 ----------
-
-function openConsumeAi() {
-  document.getElementById("consume-photo-btn").click();
-}
-
-document.querySelectorAll(".action-menu-card").forEach(card => {
-  card.addEventListener("click", () => {
-    const target = card.dataset.target;
-    if (target === "ai") openRegisterAi();
-    else if (target === "manual") openRegisterManualOverlay();
-    else if (target === "consume-ai") openConsumeAi();
-    else if (target === "consume-manual") openConsumeSearchOverlay();
-  });
-});
+import { closeRegisterOverlay } from "./items.js";
 
 // ---------- 完了したら自動でオーバーレイを閉じる ----------
 
