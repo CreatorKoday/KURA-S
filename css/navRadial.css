@@ -10,6 +10,9 @@
   justify-content: space-between;
   padding-top: 8px;
   padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  /* 左右の余白を広げ、両サイドのボタン群を中央の丸ボタン側へ少し寄せる */
+  padding-left: 22px;
+  padding-right: 22px;
 }
 
 .nav-bar-side { display: flex; gap: 4px; }
@@ -42,8 +45,7 @@
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   background: var(--gradient-primary);
-  border: 4px solid var(--bg-1);
-  box-shadow: 0 10px 24px rgba(108, 79, 246, 0.38);
+  box-shadow: 0 6px 16px rgba(108, 79, 246, 0.28);
   z-index: 960;
   cursor: pointer;
 }
