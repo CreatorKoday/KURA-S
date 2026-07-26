@@ -3,12 +3,20 @@
    ナビバー中央の円形メニュー(登録・消費)
    ========================================================== */
 
-/* ナビバーを左(ホーム・買い物)/右(在庫)の2グループに分け、中央に隙間を作る */
-.nav-bar { justify-content: space-between; }
+/* ナビバーを左(ホーム・買い物)/右(在庫)の2グループに分け、中央に隙間を作る。
+   あわせて、ラベル下の余白が広くなりすぎないようバー自体の上下パディングを詰め、
+   中央の丸ボタンと「買い物」アイコンの間隔を確保するためボタン幅・アイコンも一回り小さくする */
+.nav-bar {
+  justify-content: space-between;
+  padding-top: 8px;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
+}
 
 .nav-bar-side { display: flex; gap: 4px; }
 
-.nav-bar .nav-btn { flex: 0 0 auto; width: 74px; }
+.nav-bar .nav-btn { flex: 0 0 auto; width: 62px; height: 44px; }
+
+.nav-bar .nav-btn .material-symbols-rounded { font-size: 19px; }
 
 /* 展開中、円の外側(ナビバー上を含む)をタップすると閉じるための透明な全画面レイヤー。
    小さいアイコンボタン・半円メニュー本体はどちらもこのレイヤーより手前にあるため、
@@ -28,9 +36,9 @@
    高さの変化に追従してボタンの位置がズレない(上端がバーからはみ出さなくなる)ようにするため */
 .nav-radial-btn {
   position: fixed;
-  left: 50%; bottom: calc(16px + env(safe-area-inset-bottom));
+  left: 50%; bottom: calc(12px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
-  width: 80px; height: 80px;
+  width: 62px; height: 62px;
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   background: var(--gradient-primary);
@@ -42,7 +50,7 @@
 
 .nav-radial-idle-icon { display: flex; color: #fff; }
 
-.nav-radial-idle-icon .material-symbols-rounded { font-size: 28px; }
+.nav-radial-idle-icon .material-symbols-rounded { font-size: 22px; }
 
 /* 展開時に現れる半円メニュー。ナビバーが半透明で背後が透けて見えてしまうのを避けるため、
    下端(平らな辺)をナビバーの上端に揃え、バーの領域には一切重ならない半円だけを表示する
@@ -51,7 +59,7 @@
    実際の高さに追従させ、ホーム画面追加時にナビバーへ食い込まないようにするため) */
 .nav-radial-expand {
   position: fixed;
-  left: 50%; bottom: calc(73px + env(safe-area-inset-bottom));
+  left: 50%; bottom: calc(61px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
   transform-origin: center bottom;
   width: 220px; height: 110px;
