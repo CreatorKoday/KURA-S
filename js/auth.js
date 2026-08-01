@@ -49,12 +49,23 @@ async function fetchCurrentMembership() {
   return data;
 }
 
+// 匿名サインインに失敗した場合(Supabase側で「Anonymous Sign-ins」が無効になっている等)、
+// 部屋の作成/入室フォームを操作できてしまうと、ユーザーが紐付かないまま
+// household_membersへのinsertが失敗し分かりにくいエラーになる。フォーム自体を隠して防ぐ
+function showBlockedState() {
+  document.querySelector(".auth-mode-tabs").classList.add("hidden");
+  document.getElementById("auth-create-form").classList.add("hidden");
+  document.getElementById("auth-join-form").classList.add("hidden");
+  document.getElementById("auth-key-reveal").classList.add("hidden");
+}
+
 async function init() {
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) {
     const { error } = await supabaseClient.auth.signInAnonymously();
     if (error) {
-      showMessage(messageBox, "接続エラー: " + error.message, true);
+      showMessage(messageBox, "接続エラー: " + error.message + "(Supabase側で匿名サインインが有効か確認してください)", true);
+      showBlockedState();
       return;
     }
   }
