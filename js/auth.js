@@ -2,13 +2,17 @@
 // 部屋(household)の作成・キーでの入室・退室。
 //
 // ログインにメール/パスワードは使わず、Supabaseの匿名サインインを裏側で使う。
-// 「部屋を作る」(メールアドレス+ニックネーム)/「キーで入室」(ルームキー+ニックネーム)
-// を選ぶだけで利用を開始でき、同じルームキーで入った人同士が同じ在庫を共有する。
-// 部屋作成時のメールアドレスは、入室画面の「キーを忘れた場合」でルームキーを
-// 確認するためだけに使う。所有権の確認にはSupabaseのマジックリンク(signInWithOtp)を使い、
-// 実際にそのメールのリンクを開いた場合だけキーを画面表示する(なりすまし防止)。
-// リンクを開くとその場のセッションが匿名から実メールアドレスの認証済みセッションに
-// 置き換わるため、キー表示後は再度匿名サインインし直して通常の入室待ち状態に戻す。
+// 認証画面は既定で「キーで入室」(ルームキー+ニックネーム)を表示し、
+// 新規作成は「新規作成はこちら」から別画面(メールアドレス+ニックネーム→確認コード入力)
+// で行う。誤ったメールアドレスで部屋が作られてしまうのを防ぐため、確認コードの検証に
+// 成功するまでは部屋(households/household_members)を一切作らない
+// (signInWithOtpでコードを送るだけの段階では何も作成されず、verifyOtpでの検証成功後に
+// 初めてcreate_householdを呼ぶ)。
+// 部屋作成時のメールアドレスは、入室画面の「キーを忘れた場合」でもルームキーを
+// 確認するために使う(こちらはSupabaseのマジックリンクで所有権を確認する)。
+// メール確認(送信コードの検証・マジックリンクのクリック)が成功すると、その場のセッションが
+// 匿名から実メールアドレスの認証済みセッションに置き換わるため、確認後は毎回
+// 再度匿名サインインし直して通常の入室待ち状態に戻す。
 // household_id(部屋の分離)・actor_nickname(誰が操作したか)は
 // DB側の関数(current_household_id/current_nickname、sql/017参照)が
 // insert時に自動設定するため、アプリ側では意識する必要がない。
@@ -23,8 +27,9 @@ import { loadShoppingList } from "./shopping.js";
 function showEntryForm() {
   authCard.classList.remove("hidden");
   loggedInArea.classList.add("hidden");
-  document.getElementById("auth-create-form").classList.remove("hidden");
-  document.getElementById("auth-join-form").classList.add("hidden");
+  document.getElementById("auth-join-form").classList.remove("hidden");
+  document.getElementById("auth-create-form").classList.add("hidden");
+  document.getElementById("auth-create-code-form").classList.add("hidden");
   document.getElementById("auth-forgot-key-form").classList.add("hidden");
   document.getElementById("auth-forgot-key-sent").classList.add("hidden");
   document.getElementById("auth-forgot-key-reveal").classList.add("hidden");
@@ -61,8 +66,8 @@ async function fetchCurrentMembership() {
 // 部屋の作成/入室フォームを操作できてしまうと、ユーザーが紐付かないまま
 // household_membersへのinsertが失敗し分かりにくいエラーになる。フォーム自体を隠して防ぐ
 function showBlockedState() {
-  document.querySelector(".auth-mode-tabs").classList.add("hidden");
   document.getElementById("auth-create-form").classList.add("hidden");
+  document.getElementById("auth-create-code-form").classList.add("hidden");
   document.getElementById("auth-join-form").classList.add("hidden");
   document.getElementById("auth-forgot-key-form").classList.add("hidden");
   document.getElementById("auth-forgot-key-sent").classList.add("hidden");
@@ -80,9 +85,6 @@ async function handleVerifiedEmailReturn() {
   await supabaseClient.auth.signInAnonymously();
 
   showEntryForm();
-  document.querySelectorAll(".auth-mode-tab").forEach(t => t.classList.toggle("active", t.dataset.mode === "join"));
-  document.getElementById("auth-create-form").classList.add("hidden");
-  document.getElementById("auth-join-form").classList.remove("hidden");
 
   if (error || !roomKey) {
     showMessage(messageBox, "登録されているキーが見つかりませんでした", true);
@@ -116,25 +118,65 @@ async function init() {
 }
 init();
 
-// 「部屋を作る」/「キーで入室」のタブ切り替え
-document.querySelectorAll(".auth-mode-tab").forEach(tab => {
-  tab.addEventListener("click", () => {
-    document.querySelectorAll(".auth-mode-tab").forEach(t => t.classList.toggle("active", t === tab));
-    document.getElementById("auth-create-form").classList.toggle("hidden", tab.dataset.mode !== "create");
-    document.getElementById("auth-join-form").classList.toggle("hidden", tab.dataset.mode !== "join");
-    document.getElementById("auth-forgot-key-form").classList.add("hidden");
-    document.getElementById("auth-forgot-key-sent").classList.add("hidden");
-    document.getElementById("auth-forgot-key-reveal").classList.add("hidden");
-  });
+// 「新規作成はこちら」: 入室画面から部屋作成画面(①メール入力)に切り替える
+document.getElementById("auth-goto-create-btn").addEventListener("click", () => {
+  showMessage(messageBox, "", false);
+  document.getElementById("auth-join-form").classList.add("hidden");
+  document.getElementById("auth-create-form").classList.remove("hidden");
 });
 
-document.getElementById("create-room-btn").addEventListener("click", async () => {
+document.getElementById("auth-create-cancel-btn").addEventListener("click", () => {
+  showMessage(messageBox, "", false);
+  document.getElementById("auth-create-form").classList.add("hidden");
+  document.getElementById("auth-join-form").classList.remove("hidden");
+});
+
+document.getElementById("auth-create-code-cancel-btn").addEventListener("click", () => {
+  showMessage(messageBox, "", false);
+  document.getElementById("auth-create-code-form").classList.add("hidden");
+  document.getElementById("auth-join-form").classList.remove("hidden");
+});
+
+// 部屋作成①: メールアドレスに確認コードを送る(この時点では部屋はまだ作らない)
+document.getElementById("create-send-code-btn").addEventListener("click", async () => {
   const email = document.getElementById("create-email").value.trim();
   const nickname = document.getElementById("create-nickname").value.trim();
   if (!email || !nickname) {
     showMessage(messageBox, "メールアドレスとニックネームを入力してください", true);
     return;
   }
+
+  const { error } = await supabaseClient.auth.signInWithOtp({ email });
+  if (error) {
+    showMessage(messageBox, "確認コードの送信に失敗しました: " + error.message, true);
+    return;
+  }
+
+  showMessage(messageBox, "", false);
+  document.getElementById("auth-create-form").classList.add("hidden");
+  document.getElementById("create-code").value = "";
+  document.getElementById("auth-create-code-form").classList.remove("hidden");
+});
+
+// 部屋作成②: 確認コードを検証し、成功した場合だけcreate_householdで部屋を作る
+document.getElementById("create-verify-code-btn").addEventListener("click", async () => {
+  const email = document.getElementById("create-email").value.trim();
+  const nickname = document.getElementById("create-nickname").value.trim();
+  const code = document.getElementById("create-code").value.trim();
+  if (!code) {
+    showMessage(messageBox, "確認コードを入力してください", true);
+    return;
+  }
+
+  const { error: verifyError } = await supabaseClient.auth.verifyOtp({ email, token: code, type: "email" });
+  if (verifyError) {
+    showMessage(messageBox, "確認コードが正しくないか、有効期限が切れています", true);
+    return;
+  }
+
+  // 確認済みの実メールアドレスセッションから、他の入室経路と同じ匿名セッションに戻してから部屋を作る
+  await supabaseClient.auth.signOut();
+  await supabaseClient.auth.signInAnonymously();
 
   const { data, error } = await supabaseClient
     .rpc("create_household", { p_email: email, p_nickname: nickname })
@@ -148,7 +190,7 @@ document.getElementById("create-room-btn").addEventListener("click", async () =>
   }
 
   showMessage(messageBox, "", false);
-  document.getElementById("auth-create-form").classList.add("hidden");
+  document.getElementById("auth-create-code-form").classList.add("hidden");
   document.getElementById("auth-key-text").textContent = data.room_key;
   document.getElementById("auth-key-reveal").classList.remove("hidden");
 });

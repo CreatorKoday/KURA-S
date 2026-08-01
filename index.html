@@ -43,23 +43,9 @@
     </div>
 
     <!-- メール/パスワードは使わず、部屋の作成/キーでの入室のみで利用開始できる
-         (裏側でSupabaseの匿名サインインを使う。js/auth.js参照) -->
-    <div class="auth-mode-tabs">
-      <button type="button" class="auth-mode-tab active" data-mode="create">部屋を作る</button>
-      <button type="button" class="auth-mode-tab" data-mode="join">キーで入室</button>
-    </div>
-
-    <div id="auth-create-form">
-      <label for="create-email">メールアドレス</label>
-      <input type="email" id="create-email" placeholder="you@example.com">
-
-      <label for="create-nickname">ニックネーム</label>
-      <input type="text" id="create-nickname" placeholder="例: たろう">
-
-      <button class="btn-primary" id="create-room-btn"><span class="material-symbols-rounded">home</span> 部屋を作る</button>
-    </div>
-
-    <div id="auth-join-form" class="hidden">
+         (裏側でSupabaseの匿名サインインを使う。js/auth.js参照)。
+         既定では「キーで入室」を表示し、新規作成は「新規作成はこちら」から別画面で行う -->
+    <div id="auth-join-form">
       <label for="join-room-key">ルームキー</label>
       <input type="text" id="join-room-key" placeholder="共有されたキーを入力">
 
@@ -68,6 +54,32 @@
 
       <button class="btn-primary" id="join-room-btn"><span class="material-symbols-rounded">login</span> 入室する</button>
       <button type="button" class="auth-link-btn" id="auth-forgot-key-btn">キーを忘れた場合</button>
+      <button type="button" class="auth-link-btn" id="auth-goto-create-btn">新規作成はこちら</button>
+    </div>
+
+    <!-- 部屋の新規作成 ①: メールアドレスに確認コードを送る。
+         誤ったメールアドレスで部屋が作られてしまうのを防ぐため、この時点では
+         まだ部屋を作らず、次のステップでコードを確認できて初めて部屋を作成する -->
+    <div id="auth-create-form" class="hidden">
+      <label for="create-email">メールアドレス</label>
+      <input type="email" id="create-email" placeholder="you@example.com">
+
+      <label for="create-nickname">ニックネーム</label>
+      <input type="text" id="create-nickname" placeholder="例: たろう">
+
+      <button class="btn-primary" id="create-send-code-btn"><span class="material-symbols-rounded">mail</span> 確認コードを送る</button>
+      <button type="button" class="auth-link-btn" id="auth-create-cancel-btn">入室画面に戻る</button>
+    </div>
+
+    <!-- 部屋の新規作成 ②: 届いた確認コードを入力する。ここで検証に成功して
+         初めてcreate_household(部屋の作成)を呼ぶ -->
+    <div id="auth-create-code-form" class="hidden">
+      <p class="section-label">確認コードを入力</p>
+      <label for="create-code">メールに届いた6桁のコード</label>
+      <input type="text" id="create-code" inputmode="numeric" pattern="[0-9]*" placeholder="123456">
+
+      <button class="btn-primary" id="create-verify-code-btn"><span class="material-symbols-rounded">check</span> 確認する</button>
+      <button type="button" class="auth-link-btn" id="auth-create-code-cancel-btn">入室画面に戻る</button>
     </div>
 
     <!-- 「キーを忘れた場合」: 部屋作成時に登録したメールアドレス宛にSupabaseの
