@@ -50,8 +50,8 @@
     </div>
 
     <div id="auth-create-form">
-      <label for="create-room-name">部屋名</label>
-      <input type="text" id="create-room-name" placeholder="例: 我が家">
+      <label for="create-email">メールアドレス</label>
+      <input type="email" id="create-email" placeholder="you@example.com">
 
       <label for="create-nickname">ニックネーム</label>
       <input type="text" id="create-nickname" placeholder="例: たろう">
@@ -67,6 +67,37 @@
       <input type="text" id="join-nickname" placeholder="例: はなこ">
 
       <button class="btn-primary" id="join-room-btn"><span class="material-symbols-rounded">login</span> 入室する</button>
+      <button type="button" class="auth-link-btn" id="auth-forgot-key-btn">キーを忘れた場合</button>
+    </div>
+
+    <!-- 「キーを忘れた場合」: 部屋作成時に登録したメールアドレス宛にSupabaseの
+         マジックリンクを送り、実際にそのメールのリンクを開いて所有権を確認できた
+         場合だけルームキーを表示する(なりすまし防止のため、その場での即時表示はしない) -->
+    <div id="auth-forgot-key-form" class="hidden">
+      <p class="section-label">キーを確認する</p>
+      <label for="forgot-key-email">部屋作成時に登録したメールアドレス</label>
+      <input type="email" id="forgot-key-email" placeholder="you@example.com">
+
+      <button class="btn-primary" id="forgot-key-submit-btn"><span class="material-symbols-rounded">mail</span> 確認メールを送る</button>
+      <button type="button" class="auth-link-btn" id="auth-forgot-key-cancel-btn">入室画面に戻る</button>
+    </div>
+
+    <!-- 確認メール送信直後の案内(この端末でメール内のリンクを開くとキー表示画面に進む) -->
+    <div id="auth-forgot-key-sent" class="hidden">
+      <p class="section-label">確認メールを送信しました</p>
+      <p class="auth-key-note">届いたメール内のリンクを、この端末で開いてください。リンクを開くとルームキーが表示されます。</p>
+      <button type="button" class="auth-link-btn" id="auth-forgot-key-sent-back-btn">入室画面に戻る</button>
+    </div>
+
+    <!-- メール内のリンクを開き、メールアドレスの所有権が確認できた後にルームキーを表示する
+         (部屋作成直後の表示と共通のスタイルを使う) -->
+    <div id="auth-forgot-key-reveal" class="hidden">
+      <p class="section-label">キーが見つかりました</p>
+      <div class="auth-key-display">
+        <span id="auth-forgot-key-text"></span>
+        <button type="button" id="auth-forgot-key-copy-btn" aria-label="キーをコピー"><span class="material-symbols-rounded">content_copy</span></button>
+      </div>
+      <button class="btn-primary" id="auth-forgot-key-back-btn">入室画面に戻る</button>
     </div>
 
     <!-- 部屋作成直後だけ表示し、ルームキーを控えてもらう画面 -->

@@ -174,6 +174,22 @@ body {
 
 .auth-key-note { font-size: 12px; color: var(--text-secondary); line-height: 1.6; margin: 8px 4px 0; }
 
+/* 「キーを忘れた場合」「入室画面に戻る」などのテキストリンク風ボタン */
+.auth-link-btn {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 4px;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: underline;
+}
+
+.auth-link-btn:hover { color: var(--primary); }
+
 .auth-key-display {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   margin: 14px 0 0;
