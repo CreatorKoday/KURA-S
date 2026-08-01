@@ -154,6 +154,47 @@ body {
 
 .auth-card { max-width: 400px; margin: 40px auto 0; }
 
+/* 部屋を作る/キーで入室のタブ切り替え(ログイン画面) */
+.auth-mode-tabs {
+  display: flex; gap: 6px;
+  margin-top: 20px;
+  padding: 4px;
+  background: var(--bg-2);
+  border-radius: var(--radius-pill);
+}
+
+.auth-mode-tab {
+  flex: 1; height: 40px;
+  background: transparent; color: var(--text-secondary);
+  border-radius: var(--radius-pill);
+  font-size: 13px; font-weight: 700;
+}
+
+.auth-mode-tab.active { background: var(--surface); color: var(--primary); box-shadow: var(--shadow-1); }
+
+.auth-key-note { font-size: 12px; color: var(--text-secondary); line-height: 1.6; margin: 8px 4px 0; }
+
+.auth-key-display {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin: 14px 0 0;
+  padding: 14px 16px;
+  background: var(--primary-soft);
+  border-radius: var(--radius-md);
+}
+
+#auth-key-text {
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 20px; font-weight: 800; letter-spacing: 0.08em;
+  color: var(--primary);
+}
+
+.auth-key-display button {
+  width: 36px; height: 36px; flex-shrink: 0;
+  background: var(--surface); color: var(--primary);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+
 label {
   display: block;
   font-size: 12px;
@@ -258,6 +299,22 @@ button:active { transform: scale(0.96); }
   display: flex; align-items: center; justify-content: space-between;
 }
 
+.app-header-top.hidden { display: none; }
+
+/* ホーム画面以外ではKURA:Sロゴ・ログアウト行を隠す(js/navigation.jsのswitchViewが
+   .app-header-topにhiddenを付け外しする)。ただし共通通知欄(#app-notice)は他の画面でも
+   案内メッセージを表示できるよう隠さない。ロゴ行・通知欄のどちらも表示するものが無い時だけ、
+   空のカードが浮いて見えないようカード自体の余白・枠線を消す */
+.app-header:has(.app-header-top.hidden):has(#app-notice.hidden) {
+  padding: 0;
+  margin-bottom: 0;
+  border: none;
+  background: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
 .app-header-logo {
   font-weight: 800;
   font-size: 16px;
@@ -299,6 +356,14 @@ button:active { transform: scale(0.96); }
 }
 
 .app-notice.hidden { display: none; }
+
+/* ロゴ行が隠れている(ホーム画面以外の)間は、ロゴ行との区切り線だった上余白・罫線が
+   宙に浮いて見えてしまうため消す(通知欄だけがそのままカード上端に来る見た目にする) */
+.app-header:has(.app-header-top.hidden) .app-notice {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
 
 /* 手動登録・手動消費の完了検知に使う旧メッセージ欄は、成功時の見た目だけ非表示にする
    (表示は #app-notice に一本化。エラー時は今までどおりここに赤字で表示する) */

@@ -29,6 +29,9 @@
   letter-spacing: 0.04em;
 }
 
+/* 「今日は何の日」との交互表示切り替え時のフェード(js/home.jsが約10秒ごとに付け外しする) */
+.home-greeting-fade { animation: fadeIn .3s ease; }
+
 .home-greeting-icon {
   width: 44px; height: 44px;
   border-radius: 50%;
@@ -170,51 +173,69 @@
 
 .action-menu-label { font-size: 13px; font-weight: 600; color: var(--text); }
 
-/* --- ③ 賞味期限のお知らせ --- */
-.home-notice-card { padding: 20px; }
+/* --- ③ 賞味期限のお知らせ(期限切れ/3日前/1週間以内/1ヶ月以内を横並びのタブ+共通パネルで表示) --- */
+.expiry-notice-tabs { display: flex; gap: 8px; }
 
-.home-notice-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-}
-
-.home-notice-stat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 14px 6px;
+.expiry-notice-tab {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 10px 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: var(--bg-1);
+  box-shadow: var(--shadow-1);
 }
 
-.home-notice-stat-icon { font-size: 18px; color: var(--text-tertiary); }
+.expiry-notice-tab-count { font-size: 17px; font-weight: 800; color: var(--text); }
 
-.home-notice-stat-value {
-  font-size: 20px;
-  font-weight: 800;
-  color: var(--text);
+.expiry-notice-tab-label {
+  font-size: 10px; font-weight: 700; color: var(--text-secondary);
+  white-space: nowrap;
 }
 
-.home-notice-stat-unit {
-  font-size: 11px;
-  font-weight: 600;
-  margin-left: 1px;
-  color: var(--text-tertiary);
+.expiry-notice-tab.expired.active { border-color: var(--danger); background: rgba(229,90,90,0.08); }
+.expiry-notice-tab.expired.active .expiry-notice-tab-count { color: var(--danger); }
+
+.expiry-notice-tab.days3.active,
+.expiry-notice-tab.week.active { border-color: #A66A17; background: rgba(229,160,59,0.10); }
+.expiry-notice-tab.days3.active .expiry-notice-tab-count,
+.expiry-notice-tab.week.active .expiry-notice-tab-count { color: #A66A17; }
+
+.expiry-notice-tab.month.active { border-color: var(--primary); background: var(--primary-soft); }
+.expiry-notice-tab.month.active .expiry-notice-tab-count { color: var(--primary); }
+
+.expiry-notice-panel {
+  margin-top: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  animation: fadeSlideIn .2s ease;
 }
 
-.home-notice-stat-label {
-  font-size: 11px;
-  color: var(--text-secondary);
-  font-weight: 600;
+.expiry-notice-panel.hidden { display: none; }
+
+.expiry-notice-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
 }
 
-.home-notice-stat.expired .home-notice-stat-icon { color: var(--danger); }
+.expiry-notice-item:last-child { border-bottom: none; }
 
-.home-notice-stat.soon .home-notice-stat-icon { color: var(--warning); }
+.expiry-notice-item:hover { background: var(--bg-1); }
 
-.home-notice-stat.low .home-notice-stat-icon { color: var(--primary); }
+.expiry-notice-item-name {
+  flex: 1; min-width: 0;
+  font-size: 13px; font-weight: 600; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.expiry-notice-item-expiry { font-size: 11px; color: var(--text-tertiary); flex-shrink: 0; }
+
+.expiry-notice-item-qty { font-size: 12px; font-weight: 700; color: var(--text-secondary); flex-shrink: 0; }
+
+.expiry-notice-empty { padding: 14px 16px; font-size: 12px; color: var(--text-tertiary); }
 
 /* --- ④ 今後追加予定 --- */
 .insight-grid {

@@ -42,20 +42,43 @@
       <p class="brand-tagline">暮らしを、もっとスマートに。</p>
     </div>
 
-    <label for="email">メールアドレス</label>
-    <div class="input-icon-wrap">
-      <span class="material-symbols-rounded">mail</span>
-      <input type="email" id="email" placeholder="you@example.com">
+    <!-- メール/パスワードは使わず、部屋の作成/キーでの入室のみで利用開始できる
+         (裏側でSupabaseの匿名サインインを使う。js/auth.js参照) -->
+    <div class="auth-mode-tabs">
+      <button type="button" class="auth-mode-tab active" data-mode="create">部屋を作る</button>
+      <button type="button" class="auth-mode-tab" data-mode="join">キーで入室</button>
     </div>
 
-    <label for="password">パスワード(6文字以上)</label>
-    <div class="input-icon-wrap">
-      <span class="material-symbols-rounded">lock</span>
-      <input type="password" id="password" placeholder="••••••••">
+    <div id="auth-create-form">
+      <label for="create-room-name">部屋名</label>
+      <input type="text" id="create-room-name" placeholder="例: 我が家">
+
+      <label for="create-nickname">ニックネーム</label>
+      <input type="text" id="create-nickname" placeholder="例: たろう">
+
+      <button class="btn-primary" id="create-room-btn"><span class="material-symbols-rounded">home</span> 部屋を作る</button>
     </div>
 
-    <button class="btn-primary" id="login-btn"><span class="material-symbols-rounded">login</span> ログイン</button>
-    <button class="btn-secondary" id="signup-btn"><span class="material-symbols-rounded">person_add</span> はじめて使う方はこちら</button>
+    <div id="auth-join-form" class="hidden">
+      <label for="join-room-key">ルームキー</label>
+      <input type="text" id="join-room-key" placeholder="共有されたキーを入力">
+
+      <label for="join-nickname">ニックネーム</label>
+      <input type="text" id="join-nickname" placeholder="例: はなこ">
+
+      <button class="btn-primary" id="join-room-btn"><span class="material-symbols-rounded">login</span> 入室する</button>
+    </div>
+
+    <!-- 部屋作成直後だけ表示し、ルームキーを控えてもらう画面 -->
+    <div id="auth-key-reveal" class="hidden">
+      <p class="section-label">部屋を作成しました</p>
+      <p class="auth-key-note">このキーを家族・知り合いに共有してください。キーを紛失すると入室し直せなくなるため、必ず控えておいてください。</p>
+      <div class="auth-key-display">
+        <span id="auth-key-text"></span>
+        <button type="button" id="auth-key-copy-btn" aria-label="キーをコピー"><span class="material-symbols-rounded">content_copy</span></button>
+      </div>
+      <button class="btn-primary" id="auth-key-continue-btn">はじめる</button>
+    </div>
 
     <div id="message"></div>
   </div>
@@ -66,8 +89,8 @@
       <div class="app-header-top">
         <p class="app-header-logo">KURA:S</p>
         <div class="app-header-user">
-          <span id="user-email"></span>
-          <button id="logout-btn" aria-label="ログアウト"><span class="material-symbols-rounded">logout</span></button>
+          <span id="user-nickname"></span>
+          <button id="logout-btn" aria-label="この端末から退室"><span class="material-symbols-rounded">logout</span></button>
         </div>
       </div>
       <div id="app-notice" class="app-notice hidden"></div>
@@ -89,27 +112,30 @@
       </div>
 
 
-      <!-- ③ 賞味期限のお知らせ(現在はダミー表示) -->
+      <!-- ③ 賞味期限のお知らせ: 期限切れ/3日前/1週間以内/1ヶ月以内の4つを横並びのタブで表示する。
+           タブを押すと、その内容(商品名・期限・数量の一覧)が下の共通パネルに開く
+           (もう一度同じタブを押すと閉じる)。一覧の商品をタップすると在庫確認画面で
+           その商品名だけに絞り込んで表示する -->
       <p class="section-label" style="margin-top:28px;">賞味期限のお知らせ</p>
-      <div class="card home-notice-card">
-        <div class="home-notice-stats">
-          <div class="home-notice-stat expired">
-            <span class="material-symbols-rounded home-notice-stat-icon">error</span>
-            <span class="home-notice-stat-value">0<span class="home-notice-stat-unit">件</span></span>
-            <span class="home-notice-stat-label">期限切れ</span>
-          </div>
-          <div class="home-notice-stat soon">
-            <span class="material-symbols-rounded home-notice-stat-icon">schedule</span>
-            <span class="home-notice-stat-value">0<span class="home-notice-stat-unit">件</span></span>
-            <span class="home-notice-stat-label">3日以内</span>
-          </div>
-          <div class="home-notice-stat low">
-            <span class="material-symbols-rounded home-notice-stat-icon">inventory_2</span>
-            <span class="home-notice-stat-value">0<span class="home-notice-stat-unit">件</span></span>
-            <span class="home-notice-stat-label">在庫少なめ</span>
-          </div>
-        </div>
+      <div class="expiry-notice-tabs">
+        <button type="button" class="expiry-notice-tab expired" data-key="expired">
+          <span class="expiry-notice-tab-count" id="expiry-notice-count-expired">0</span>
+          <span class="expiry-notice-tab-label">期限切れ</span>
+        </button>
+        <button type="button" class="expiry-notice-tab days3" data-key="days3">
+          <span class="expiry-notice-tab-count" id="expiry-notice-count-days3">0</span>
+          <span class="expiry-notice-tab-label">3日前</span>
+        </button>
+        <button type="button" class="expiry-notice-tab week" data-key="week">
+          <span class="expiry-notice-tab-count" id="expiry-notice-count-week">0</span>
+          <span class="expiry-notice-tab-label">1週間以内</span>
+        </button>
+        <button type="button" class="expiry-notice-tab month" data-key="month">
+          <span class="expiry-notice-tab-count" id="expiry-notice-count-month">0</span>
+          <span class="expiry-notice-tab-label">1ヶ月以内</span>
+        </button>
       </div>
+      <div class="expiry-notice-panel hidden" id="expiry-notice-panel"></div>
 
       <!-- ④ 今後追加予定(レイアウト検討用のプレースホルダー) -->
       <p class="section-label" style="margin-top:28px;">今後追加予定</p>

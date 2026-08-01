@@ -17,7 +17,7 @@ import { showMessage, escapeHtml, showAppNotice, productMasterStatusPrefix } fro
 import { syncShoppingListForItem, addToShoppingList, loadShoppingList } from "./shopping.js";
 import { isContinuousUnit, computeCombinedStockQuantity, representativeUnitForEntries } from "./quantity.js";
 import { openQuantityPicker } from "./quantityPicker.js";
-import { resolveProductMaster, computeItemSearchScore, normalizeProductName } from "./productMaster.js";
+import { resolveProductMaster, computeItemSearchScore, normalizeProductName, getCategoryIcon } from "./productMaster.js";
 import { updateUnitSuggestions } from "./units.js";
 
 // 手動登録画面の数量欄(4桁ドラムロールピッカーで選択した値を保持する)
@@ -545,21 +545,34 @@ inventorySearchInput.addEventListener("input", () => {
 // 今後「登録日」「購入金額」「消費期限」などを追加する場合は、この配列に定義を足すだけで
 // 左側の種類一覧に反映される(現時点はチェックボックス一覧形式のみ実装している)
 const inventoryFilterDefs = [
+  { key: "stock", label: "在庫" },
   { key: "type", label: "種別" },
+  { key: "storage", label: "保管場所" },
   { key: "category", label: "カテゴリー" },
   { key: "subcategory", label: "サブカテゴリー" }
 ];
 
+// 「在庫」フィルターは、種別/カテゴリー/サブカテゴリーのようにデータから選択肢を集計するのではなく、
+// 固定の1択(在庫なしを表示するかどうか)を持つだけの特別な種類。既定(未選択)では在庫なし
+// (グループ内のどの商品名にも1件もロットが無い状態)のカードを一覧から除外し、チェックすると表示する
+const INVENTORY_STOCK_FILTER_OPTION = "在庫なしを表示";
+
 // 実際の絞り込みに使われている確定済みの選択(種類ごとにSet)
-const appliedInventoryFilters = { type: new Set(), category: new Set(), subcategory: new Set() };
+const appliedInventoryFilters = { stock: new Set(), type: new Set(), storage: new Set(), category: new Set(), subcategory: new Set() };
 // フィルター画面を開いている間だけの一時的な選択。「結果を表示」を押すまでappliedへ反映しない
-let stagedInventoryFilters = { type: new Set(), category: new Set(), subcategory: new Set() };
+let stagedInventoryFilters = { stock: new Set(), type: new Set(), storage: new Set(), category: new Set(), subcategory: new Set() };
 let activeInventoryFilterKey = inventoryFilterDefs[0].key;
 // loadItems()が最後に取得した全件。フィルター画面の選択肢(種別/カテゴリー/サブカテゴリーの一覧)を作るのに使う
 let latestAllItems = [];
 
 function computeTypeOptions(allItems) {
   return Array.from(new Set(allItems.map(effectiveType).filter(Boolean))).sort((a, b) => a.localeCompare(b, "ja"));
+}
+function computeStorageOptions(allItems, selectedTypes) {
+  const relevant = selectedTypes.size > 0
+    ? allItems.filter(item => selectedTypes.has(effectiveType(item)))
+    : allItems;
+  return Array.from(new Set(relevant.map(effectiveStorage).filter(Boolean))).sort((a, b) => a.localeCompare(b, "ja"));
 }
 function computeCategoryOptions(allItems, selectedTypes) {
   const relevant = selectedTypes.size > 0
@@ -575,7 +588,9 @@ function computeSubcategoryOptions(allItems, selectedTypes, selectedCategories) 
 }
 
 function optionsForFilterKey(key) {
+  if (key === "stock") return [INVENTORY_STOCK_FILTER_OPTION];
   if (key === "type") return computeTypeOptions(latestAllItems);
+  if (key === "storage") return computeStorageOptions(latestAllItems, stagedInventoryFilters.type);
   if (key === "category") return computeCategoryOptions(latestAllItems, stagedInventoryFilters.type);
   if (key === "subcategory") return computeSubcategoryOptions(latestAllItems, stagedInventoryFilters.type, stagedInventoryFilters.category);
   return [];
@@ -617,8 +632,14 @@ function renderInventoryFilterOptions() {
 function renderInventoryFilterSummary() {
   const el = document.getElementById("inventory-filter-summary");
   const parts = [];
+  if (stagedInventoryFilters.stock.size > 0) {
+    parts.push(`[${INVENTORY_STOCK_FILTER_OPTION}]`);
+  }
   if (stagedInventoryFilters.type.size > 0) {
     parts.push(`[${Array.from(stagedInventoryFilters.type).join("・")}]`);
+  }
+  if (stagedInventoryFilters.storage.size > 0) {
+    parts.push(`[${Array.from(stagedInventoryFilters.storage).join("・")}]`);
   }
   if (stagedInventoryFilters.category.size > 0) {
     parts.push(`[${Array.from(stagedInventoryFilters.category).join("・")}]`);
@@ -646,8 +667,12 @@ document.getElementById("inventory-filter-options").addEventListener("click", (e
   const value = row.dataset.value;
   if (set.has(value)) set.delete(value); else set.add(value);
 
-  // 種別・カテゴリーの選択を変えたら、対象外になったカテゴリー・サブカテゴリーの選択は外す(カスケード)
+  // 種別・カテゴリーの選択を変えたら、対象外になった保管場所・カテゴリー・サブカテゴリーの選択は外す(カスケード)
   if (activeInventoryFilterKey === "type") {
+    const validStorages = new Set(computeStorageOptions(latestAllItems, stagedInventoryFilters.type));
+    Array.from(stagedInventoryFilters.storage).forEach(s => {
+      if (!validStorages.has(s)) stagedInventoryFilters.storage.delete(s);
+    });
     const validCats = new Set(computeCategoryOptions(latestAllItems, stagedInventoryFilters.type));
     Array.from(stagedInventoryFilters.category).forEach(cat => {
       if (!validCats.has(cat)) stagedInventoryFilters.category.delete(cat);
@@ -668,7 +693,9 @@ document.getElementById("inventory-filter-options").addEventListener("click", (e
 function openInventoryFilterOverlay() {
   // 確定済みの選択をコピーして一時状態にする(閉じるだけで確定しなければ破棄される)
   stagedInventoryFilters = {
+    stock: new Set(appliedInventoryFilters.stock),
     type: new Set(appliedInventoryFilters.type),
+    storage: new Set(appliedInventoryFilters.storage),
     category: new Set(appliedInventoryFilters.category),
     subcategory: new Set(appliedInventoryFilters.subcategory)
   };
@@ -683,7 +710,7 @@ function closeInventoryFilterOverlay() {
 }
 
 function updateInventoryFilterButtonLabel() {
-  const total = appliedInventoryFilters.type.size + appliedInventoryFilters.category.size + appliedInventoryFilters.subcategory.size;
+  const total = appliedInventoryFilters.stock.size + appliedInventoryFilters.type.size + appliedInventoryFilters.storage.size + appliedInventoryFilters.category.size + appliedInventoryFilters.subcategory.size;
   document.querySelector("#inventory-filter-btn .inventory-filter-btn-label").textContent =
     total > 0 ? `フィルター (${total})` : "フィルター";
 }
@@ -697,14 +724,16 @@ document.getElementById("inventory-filter-overlay").addEventListener("click", (e
 // 「フィルターを解除」: その場で選択をクリアするだけ(パネルは開いたまま)。
 // 反映するには「結果を表示」を押す必要がある
 document.getElementById("inventory-filter-clear-btn").addEventListener("click", () => {
-  stagedInventoryFilters = { type: new Set(), category: new Set(), subcategory: new Set() };
+  stagedInventoryFilters = { stock: new Set(), type: new Set(), storage: new Set(), category: new Set(), subcategory: new Set() };
   renderInventoryFilterTypes();
   renderInventoryFilterOptions();
   renderInventoryFilterSummary();
 });
 
 document.getElementById("inventory-filter-apply-btn").addEventListener("click", () => {
+  appliedInventoryFilters.stock = new Set(stagedInventoryFilters.stock);
   appliedInventoryFilters.type = new Set(stagedInventoryFilters.type);
+  appliedInventoryFilters.storage = new Set(stagedInventoryFilters.storage);
   appliedInventoryFilters.category = new Set(stagedInventoryFilters.category);
   appliedInventoryFilters.subcategory = new Set(stagedInventoryFilters.subcategory);
   closeInventoryFilterOverlay();
@@ -1137,16 +1166,34 @@ function effectiveCategory(item) {
 function effectiveSubCategory(item) {
   return (item.product_master && item.product_master.sub_category) || null;
 }
+// 保管場所。商品マスタにしか無い属性のため、商品マスタが無い商品はフォールバック値を持たない
+function effectiveStorage(item) {
+  return (item.product_master && item.product_master.storage) || null;
+}
 // 種別(食品/日用品)。商品マスタがあればその type、無ければ items.category に
 // 直接この種別が入っている(resolveItem が商品マスタ未解決時のフォールバックとして保存するため)
 function effectiveType(item) {
   return (item.product_master && item.product_master.type) || item.category || null;
 }
 
+// ホーム画面の賞味期限のお知らせ(js/home.js)から、特定の商品名だけに絞り込んで
+// 在庫確認画面を開くための入口。既存の商品名検索欄を使うため、専用のフィルターは増やさない。
+// 他のフィルターが有効なまま残っていると目的の商品が隠れてしまうため、絞り込みは解除してから開く
+export function focusInventoryOnItemName(name) {
+  appliedInventoryFilters.stock = new Set();
+  appliedInventoryFilters.type = new Set();
+  appliedInventoryFilters.storage = new Set();
+  appliedInventoryFilters.category = new Set();
+  appliedInventoryFilters.subcategory = new Set();
+  updateInventoryFilterButtonLabel();
+  inventorySearchInput.value = name;
+  loadItems();
+}
+
 export async function loadItems() {
   const { data, error } = await supabaseClient
     .from("items")
-    .select("*, item_lots(*), product_master(canonical_name, canonical_name_reading, type, category, sub_category, sub_category_reading, search_keywords, search_keywords_reading, low_stock_threshold)")
+    .select("*, item_lots(*), product_master(icon, canonical_name, canonical_name_reading, type, category, sub_category, sub_category_reading, storage, search_keywords, search_keywords_reading, low_stock_threshold)")
     .order("name", { ascending: true });
 
   if (error) {
@@ -1163,6 +1210,7 @@ export async function loadItems() {
   // 一致すれば採用、順位付けには使わない)
   const filtered = allItems.filter(item => {
     if (appliedInventoryFilters.type.size > 0 && !appliedInventoryFilters.type.has(effectiveType(item))) return false;
+    if (appliedInventoryFilters.storage.size > 0 && !appliedInventoryFilters.storage.has(effectiveStorage(item))) return false;
     if (appliedInventoryFilters.category.size > 0 && !appliedInventoryFilters.category.has(effectiveCategory(item))) return false;
     if (appliedInventoryFilters.subcategory.size > 0 && !appliedInventoryFilters.subcategory.has(effectiveSubCategory(item))) return false;
     if (searchTerm && computeItemSearchScore(item, searchTerm) === 0) return false;
@@ -1242,7 +1290,19 @@ function renderItems(items) {
 
   // 標準商品名(product_master)ごとに先にグループ化してからカテゴリーへ振り分けることで、
   // 万一グループ内で items.category が食い違っていてもグループが分断されないようにする
-  const masterGroups = groupItemsByMaster(sortedItems);
+  const allMasterGroups = groupItemsByMaster(sortedItems);
+
+  // 「在庫」フィルターで「在庫なしを表示」がチェックされていなければ、グループ内のどの商品名にも
+  // 1件もロットが無い(=完全に在庫が無い)カードを一覧から除外する(既定の挙動)
+  const showOutOfStock = appliedInventoryFilters.stock.has(INVENTORY_STOCK_FILTER_OPTION);
+  const masterGroups = showOutOfStock
+    ? allMasterGroups
+    : allMasterGroups.filter(group => group.some(item => (item.item_lots || []).length > 0));
+
+  if (masterGroups.length === 0) {
+    itemListEl.innerHTML = '<div class="empty-note">該当する商品がありません。</div>';
+    return;
+  }
 
   // 「カード内」の並び替えが指定されていれば、各カードの中の商品名区画の順序を並べ替える
   // (指定が無ければ、これまで通りグループ化時点の順序のまま)
@@ -1329,6 +1389,16 @@ function lotRowHtml(item, lot) {
   `;
 }
 
+// 商品マスタのicon(手動設定)→無ければカテゴリー既定の絵文字、の順で決める(消費画面の
+// resolveSearchItemIconと同じ考え方)。商品マスタが無い商品はeffectiveType()と同様、
+// items.categoryに種別(食品/日用品)がそのまま入っているため、そのままgetCategoryIconの
+// 第1引数(type)として渡せば適切な既定アイコンにフォールバックする
+function resolveItemIcon(item) {
+  const master = item.product_master;
+  if (master) return master.icon || getCategoryIcon(master.type, master.category);
+  return getCategoryIcon(item.category, null);
+}
+
 // 商品マスタが無い商品向けの、従来どおりの単一商品カード(表示が壊れないフォールバック)
 function itemCardHtml(item) {
   const lots = sortLotsByExpiry(item.item_lots);
@@ -1350,7 +1420,10 @@ function itemCardHtml(item) {
   return `
     <div class="item-card ${cardStatusClass}">
       <div class="item-card-header">
-        <div class="item-name">${escapeHtml(item.name)}</div>
+        <div class="item-card-title">
+          <span class="item-icon">${resolveItemIcon(item)}</span>
+          <div class="item-name">${escapeHtml(item.name)}</div>
+        </div>
         <div class="item-badges">
           ${lowStock ? '<span class="tag warning">在庫少なめ</span>' : ""}
           <button type="button" class="detail-btn" data-action="view-product-detail" data-mode="fallback"
@@ -1402,7 +1475,10 @@ function masterGroupCardHtml(group) {
   return `
     <div class="item-card ${cardStatusClass}">
       <div class="item-card-header">
-        <div class="item-name">${escapeHtml(canonicalName)}</div>
+        <div class="item-card-title">
+          <span class="item-icon">${resolveItemIcon(group[0])}</span>
+          <div class="item-name">${escapeHtml(canonicalName)}</div>
+        </div>
         <span class="item-badges">
           ${cardLowStock ? '<span class="tag warning">在庫少なめ</span>' : ""}
           <button type="button" class="detail-btn" data-action="view-product-detail" data-mode="master"

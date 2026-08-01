@@ -9,6 +9,6 @@ export const addMessageBox = document.getElementById("add-message");
 export const manualAddMessageBox = document.getElementById("manual-add-message");
 export const consumeMessageBox = document.getElementById("consume-message");
 export const reviewMessageBox = document.getElementById("review-message");
-export const userEmailLabel = document.getElementById("user-email");
+export const userNicknameLabel = document.getElementById("user-nickname");
 export const itemListEl = document.getElementById("item-list");
 export const shoppingListEl = document.getElementById("shopping-list");
