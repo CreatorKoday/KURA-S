@@ -22,6 +22,7 @@ import "./consume.js";
 
 import "./navigation.js";
 import "./auth.js";
+import "./account.js";
 import "./home.js";
 import "./navRadial.js";
 import "./history.js";

@@ -31,6 +31,7 @@
 <link rel="stylesheet" href="css/summary.css">
 <link rel="stylesheet" href="css/balanceSheet.css">
 <link rel="stylesheet" href="css/navRadial.css">
+<link rel="stylesheet" href="css/account.css">
 </head>
 <body>
 
@@ -50,7 +51,8 @@
       <input type="text" id="join-room-key" placeholder="共有されたキーを入力">
 
       <label for="join-nickname">ニックネーム</label>
-      <input type="text" id="join-nickname" placeholder="例: はなこ">
+      <input type="text" id="join-nickname" placeholder="例: はなこ" autocomplete="off">
+      <div id="join-nickname-suggestions" class="hidden"></div>
 
       <button class="btn-primary" id="join-room-btn"><span class="material-symbols-rounded">login</span> 入室する</button>
       <button type="button" class="auth-link-btn" id="auth-forgot-key-btn">キーを忘れた場合</button>
@@ -96,7 +98,7 @@
       <p class="section-label" id="auth-key-reveal-title">キーが見つかりました</p>
       <p class="auth-key-note" id="auth-key-reveal-note"></p>
       <div class="auth-key-display">
-        <span id="auth-key-text"></span>
+        <span id="auth-key-text" class="auth-key-text"></span>
         <button type="button" id="auth-key-copy-btn" aria-label="キーをコピー"><span class="material-symbols-rounded">content_copy</span></button>
       </div>
       <button class="btn-primary" id="auth-key-continue-btn">そのまま入室に進む</button>
@@ -401,6 +403,23 @@
       <div id="item-list"></div>
     </div>
 
+    <!-- アカウント画面: ルームキーの確認・コピー、参加中メンバーの確認・削除
+         (PayPayのアカウント画面を参考にしたレイアウト) -->
+    <div id="view-account" class="view hidden">
+      <h2 class="view-title">アカウント</h2>
+
+      <p class="section-label">ルームキー</p>
+      <div class="auth-key-display">
+        <span id="account-room-key" class="auth-key-text"></span>
+        <button type="button" id="account-key-copy-btn" aria-label="キーをコピー"><span class="material-symbols-rounded">content_copy</span></button>
+      </div>
+
+      <p class="section-label" style="margin-top:28px;">参加中のメンバー</p>
+      <div id="account-member-list"></div>
+
+      <div id="account-message"></div>
+    </div>
+
     <div class="nav-bar">
       <div class="nav-bar-side">
         <button class="nav-btn" data-view="home"><span class="material-symbols-rounded">home</span><span>ホーム</span></button>
@@ -408,6 +427,7 @@
       </div>
       <div class="nav-bar-side">
         <button class="nav-btn" data-view="inventory"><span class="material-symbols-rounded">inventory_2</span><span>在庫</span></button>
+        <button class="nav-btn" data-view="account"><span class="material-symbols-rounded">account_circle</span><span>アカウント</span></button>
       </div>
     </div>
 
@@ -575,9 +595,14 @@
       <div class="product-detail-section">
         <div class="product-detail-section-header">
           <h3>商品属性</h3>
-          <button type="button" class="btn-secondary product-detail-action-btn" id="product-detail-edit-btn">
-            <span class="material-symbols-rounded">edit</span> 編集
-          </button>
+          <div class="product-detail-header-actions">
+            <button type="button" class="btn-secondary product-detail-action-btn" id="product-detail-edit-btn">
+              <span class="material-symbols-rounded">edit</span> アイコンを編集
+            </button>
+            <button type="button" class="btn-secondary product-detail-action-btn" id="product-detail-regenerate-btn">
+              <span class="material-symbols-rounded">refresh</span> 再生成する
+            </button>
+          </div>
         </div>
         <div class="product-detail-attr-row">
           <span class="product-detail-attr-label">種別</span>
@@ -586,7 +611,6 @@
         <div class="product-detail-attr-row">
           <span class="product-detail-attr-label">アイコン</span>
           <span class="product-detail-attr-value" id="pd-icon-value"></span>
-          <span class="product-detail-source-badge" id="pd-icon-badge"></span>
         </div>
         <div class="product-detail-attr-row">
           <span class="product-detail-attr-label">カテゴリー</span>
@@ -623,41 +647,11 @@
            ここに product-detail-section を追加していく想定。今回はレイアウトの土台のみ。 -->
     </div>
 
-    <!-- 編集モード -->
+    <!-- 編集モード(アイコンのみ。標準商品名・カテゴリーなどは部屋をまたいで共有するデータのため
+         手動編集は廃止し、「再生成する」ボタン経由のAI再判定のみで修正する) -->
     <div id="product-detail-edit" class="hidden">
-      <div class="row2">
-        <div>
-          <label for="pd-edit-canonical-name">標準商品名(漢字)</label>
-          <input type="text" id="pd-edit-canonical-name" placeholder="例: 牛乳">
-        </div>
-        <div>
-          <label for="pd-edit-canonical-name-reading">ひらがな(必須)</label>
-          <input type="text" id="pd-edit-canonical-name-reading" placeholder="例: ぎゅうにゅう">
-        </div>
-      </div>
-      <div id="pd-edit-canonical-reading-error" class="msg-error hidden"></div>
-
       <label for="pd-edit-icon">アイコン</label>
       <input type="text" id="pd-edit-icon" maxlength="8" placeholder="絵文字を入力(例: 🍫)">
-
-      <label for="pd-edit-category">カテゴリー</label>
-      <select id="pd-edit-category"></select>
-
-      <label for="pd-edit-sub-category">サブカテゴリー</label>
-      <input type="text" id="pd-edit-sub-category" placeholder="例: チョコレート">
-
-      <label for="pd-edit-storage">保管場所</label>
-      <select id="pd-edit-storage"></select>
-
-      <label for="pd-edit-usage">用途</label>
-      <select id="pd-edit-usage"></select>
-
-      <label for="pd-edit-keyword-input">検索キーワード</label>
-      <div class="product-detail-keywords" id="pd-edit-keywords"></div>
-      <div class="product-detail-keyword-input-row">
-        <input type="text" id="pd-edit-keyword-input" placeholder="検索キーワードを入力">
-        <button type="button" class="btn-secondary" id="pd-edit-keyword-add-btn">追加</button>
-      </div>
 
       <button type="button" class="btn-primary" id="product-detail-save-btn">保存</button>
       <button type="button" class="btn-secondary" id="product-detail-cancel-btn">キャンセル</button>

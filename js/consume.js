@@ -16,7 +16,7 @@ import { loadItems, persistLotQty, sortLotsByExpiry, formatExpiryLabel } from ".
 import { fileToBase64, identifyProductsWithAI } from "./aiPhoto.js";
 import { isContinuousUnit } from "./quantity.js";
 import { openQuantityPicker } from "./quantityPicker.js";
-import { getCategoryIcon, computeItemSearchScore } from "./productMaster.js";
+import { computeItemSearchScore, resolveItemIcon } from "./productMaster.js";
 
 const consumeOverlayEl = document.getElementById("consume-overlay");
 const consumeSearchInput = document.getElementById("consume-search");
@@ -249,15 +249,6 @@ document.getElementById("consume-photo-input").addEventListener("change", async 
 // ひらがな読み対応)のスコアリングは、在庫確認画面の絞り込み検索と共有するため
 // js/productMaster.js の computeItemSearchScore に集約している
 
-// 商品マスタのicon(手動設定)→無ければカテゴリー既定の絵文字、の順で決める。
-// 商品マスタが無い商品は items.category に食品/日用品(種別)が入っているため、
-// そのままgetCategoryIconの第1引数(type)として渡せば適切な既定アイコンにフォールバックする
-function resolveSearchItemIcon(item) {
-  const master = item.product_master;
-  if (master) return master.icon || getCategoryIcon(master.type, master.category);
-  return getCategoryIcon(item.category, null);
-}
-
 // 検索結果カード: 在庫確認画面・AI消費レビューと同じitem-cardの見た目に統一する。
 // ヘッダー(アイコン・商品名・在庫・賞味期限・開閉シェブロン)をタップすると、
 // 同じカードの中でロット調整欄+確定ボタンが開閉する(見切れを防ぐため、閉じている間は
@@ -265,7 +256,7 @@ function resolveSearchItemIcon(item) {
 function consumeSearchCardHtml(item) {
   const nearestLot = sortLotsByExpiry(item.item_lots)[0];
   const expiryText = nearestLot ? formatExpiryLabel(nearestLot.expiry_date).text : "在庫なし";
-  const icon = resolveSearchItemIcon(item);
+  const icon = resolveItemIcon(item);
 
   const lots = sortLotsByExpiry(item.item_lots);
   const lotsHtml = lots.length
@@ -310,7 +301,7 @@ async function runConsumeSearch(term) {
 
   const { data, error } = await supabaseClient
     .from("items")
-    .select("id, name, unit, category, item_lots(id, quantity, expiry_date), product_master(icon, type, canonical_name, canonical_name_reading, category, sub_category, sub_category_reading, search_keywords, search_keywords_reading)");
+    .select("id, name, unit, category, item_lots(id, quantity, expiry_date), product_master(type, canonical_name, canonical_name_reading, category, sub_category, sub_category_reading, search_keywords, search_keywords_reading, household_product_settings(icon))");
 
   if (myToken !== searchToken) return; // 入力中に古いレスポンスが返ってきた場合は捨てる
 

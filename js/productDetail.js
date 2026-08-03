@@ -2,29 +2,21 @@
 // 商品マスタ 詳細/編集シート
 //
 // 在庫一覧の「詳細」ボタン(data-action="view-product-detail")から開く。
-// 表示内容は product_master から取得し、編集の保存は updateProductMasterFields()
-// で product_master を直接更新する(AIへの再問い合わせは行わない)。
+//
+// 標準商品名・カテゴリー・サブカテゴリー・保管場所・用途・検索キーワードなど
+// (AIが生成する商品識別データ)は部屋をまたいで共有されるため、手動での自由編集は
+// 廃止し、AIへの再生成(regenerateProductMasterAttributes、js/productMaster.js)
+// のみで修正する(誰か1人の誤字・誤った分類が他の部屋にまで影響するのを防ぐため、
+// 2026-08〜)。アイコン・最低数量は household_product_settings で部屋ごとに
+// 独立しているため、引き続きこのシートから直接編集できる。
 //
 // product_master_id が未設定の商品は「商品属性を作成」ボタンを表示し、
 // resolveProductMaster(name, { forceRegenerate: true }) で新規作成する。
-// forceRegenerate は将来「既存の商品属性を再生成する」機能(AIモデル変更時・
-// 分類ルール改善時など)にもそのまま流用できる共通の入口として設計している。
 // ==========================================================
 
 import { supabaseClient } from "./config.js";
 import { escapeHtml, showAppNotice } from "./utils.js";
-import {
-  resolveProductMaster,
-  updateProductMasterFields,
-  getCategoryIcon,
-  isHiragana,
-  FOOD_CATEGORIES,
-  DAILY_CATEGORIES,
-  FOOD_STORAGE_OPTIONS,
-  DAILY_STORAGE_OPTIONS,
-  FOOD_USAGE_OPTIONS,
-  DAILY_USAGE_OPTIONS
-} from "./productMaster.js";
+import { resolveProductMaster, regenerateProductMasterAttributes, getCategoryIcon } from "./productMaster.js";
 import { loadItems, sortLotsByExpiry, formatExpiryLabel } from "./items.js";
 import { syncShoppingListForItem, syncShoppingListForMaster, loadShoppingList } from "./shopping.js";
 import { isContinuousUnit } from "./quantity.js";
@@ -45,8 +37,8 @@ let currentMode = null;
 let currentItem = null;    // { id, name, unit } (item/fallbackモード)
 let currentMaster = null;  // product_master 行 (masterモードは常にあり、fallbackモードは未作成ならnull)
 let currentMasterId = null; // masterモードで開いている product_master.id
+let currentIcon = null;     // household_product_settings.icon(自分の部屋の設定。未設定ならnull)
 let thresholdCtx = null;   // { table: "items"|"product_master", id, value, unit } (最低数量の保存先。master/fallbackモードのみ)
-let editKeywords = [];
 
 // ---------- トースト(汎用) ----------
 
@@ -65,7 +57,7 @@ function applyBadge(elId, field) {
   const el = document.getElementById(elId);
   const edited = !!currentMaster.edited_fields?.includes(field);
   el.className = "product-detail-source-badge " + (edited ? "manual" : "ai");
-  el.textContent = edited ? "👤 あなたが変更" : "🤖 AIが設定";
+  el.textContent = edited ? "👤 過去に編集された内容" : "🤖 AIが設定";
 }
 
 function renderView() {
@@ -74,7 +66,7 @@ function renderView() {
   hide("product-detail-edit");
   show("product-detail-view");
 
-  const icon = currentMaster.icon || getCategoryIcon(currentMaster.type, currentMaster.category);
+  const icon = currentIcon || getCategoryIcon(currentMaster.type, currentMaster.category);
   document.getElementById("pd-icon").textContent = icon;
   document.getElementById("pd-icon-value").textContent = icon;
   // masterモードは特定の商品名を持たないため、商品名の見出しは表示せず標準商品名(下の行)だけにする
@@ -89,7 +81,6 @@ function renderView() {
   document.getElementById("pd-storage").textContent = currentMaster.storage || "未設定";
   document.getElementById("pd-usage").textContent = currentMaster.usage || "未設定";
 
-  applyBadge("pd-icon-badge", "icon");
   applyBadge("pd-category-badge", "category");
   applyBadge("pd-sub-category-badge", "subCategory");
   applyBadge("pd-storage-badge", "storage");
@@ -107,66 +98,19 @@ document.getElementById("pd-canonical-name").addEventListener("click", () => {
   document.getElementById("pd-canonical-reading").classList.toggle("hidden");
 });
 
-// ---------- 編集モード ----------
-
-function populateSelect(selectEl, options, selectedValue) {
-  selectEl.innerHTML = options.map(o =>
-    `<option value="${escapeHtml(o)}" ${o === selectedValue ? "selected" : ""}>${escapeHtml(o)}</option>`
-  ).join("");
-  if (!options.includes(selectedValue)) selectEl.value = options[0];
-}
-
-function renderEditKeywords() {
-  document.getElementById("pd-edit-keywords").innerHTML = editKeywords.map((k, i) => `
-    <span class="product-detail-keyword-chip">
-      ${escapeHtml(k)} <span class="remove" data-remove-index="${i}">✕</span>
-    </span>
-  `).join("");
-}
+// ---------- 編集モード(アイコンのみ。他の商品属性は手動編集を廃止し、
+//            「再生成する」ボタン経由のAI再判定のみで修正する) ----------
 
 function renderEdit() {
   hide("product-detail-view");
   show("product-detail-edit");
 
-  document.getElementById("pd-edit-canonical-name").value = currentMaster.canonical_name || "";
-  document.getElementById("pd-edit-canonical-name-reading").value = currentMaster.canonical_name_reading || "";
-  hide("pd-edit-canonical-reading-error");
-
-  document.getElementById("pd-edit-icon").value =
-    currentMaster.icon || getCategoryIcon(currentMaster.type, currentMaster.category);
-
-  const isFood = currentMaster.type === "食品";
-  populateSelect(document.getElementById("pd-edit-category"), isFood ? FOOD_CATEGORIES : DAILY_CATEGORIES, currentMaster.category);
-  populateSelect(document.getElementById("pd-edit-storage"), isFood ? FOOD_STORAGE_OPTIONS : DAILY_STORAGE_OPTIONS, currentMaster.storage);
-  populateSelect(document.getElementById("pd-edit-usage"), isFood ? FOOD_USAGE_OPTIONS : DAILY_USAGE_OPTIONS, currentMaster.usage);
-
-  document.getElementById("pd-edit-sub-category").value = currentMaster.sub_category || "";
-
-  editKeywords = [...(currentMaster.search_keywords || [])];
-  renderEditKeywords();
-  document.getElementById("pd-edit-keyword-input").value = "";
+  document.getElementById("pd-edit-icon").value = currentIcon || getCategoryIcon(currentMaster.type, currentMaster.category);
 
   const msgEl = document.getElementById("product-detail-save-message");
   msgEl.textContent = "";
   msgEl.className = "";
 }
-
-document.getElementById("pd-edit-keywords").addEventListener("click", (e) => {
-  const removeEl = e.target.closest("[data-remove-index]");
-  if (!removeEl) return;
-  editKeywords.splice(Number(removeEl.dataset.removeIndex), 1);
-  renderEditKeywords();
-});
-
-document.getElementById("pd-edit-keyword-add-btn").addEventListener("click", () => {
-  const input = document.getElementById("pd-edit-keyword-input");
-  const value = input.value.trim();
-  if (value && !editKeywords.includes(value)) {
-    editKeywords.push(value);
-    renderEditKeywords();
-  }
-  input.value = "";
-});
 
 document.getElementById("product-detail-edit-btn").addEventListener("click", renderEdit);
 document.getElementById("product-detail-cancel-btn").addEventListener("click", renderView);
@@ -174,54 +118,19 @@ document.getElementById("product-detail-cancel-btn").addEventListener("click", r
 document.getElementById("product-detail-save-btn").addEventListener("click", async () => {
   if (!currentMaster) return;
   const masterId = currentMaster.id;
-  const newCanonicalName = document.getElementById("pd-edit-canonical-name").value.trim();
-  const newCanonicalNameReading = document.getElementById("pd-edit-canonical-name-reading").value.trim();
   const newIcon = document.getElementById("pd-edit-icon").value.trim();
-  const newCategory = document.getElementById("pd-edit-category").value;
-  const newSubCategory = document.getElementById("pd-edit-sub-category").value.trim();
-  const newStorage = document.getElementById("pd-edit-storage").value;
-  const newUsage = document.getElementById("pd-edit-usage").value;
-
-  const readingErrorEl = document.getElementById("pd-edit-canonical-reading-error");
-  if (!newCanonicalName) {
-    readingErrorEl.textContent = "標準商品名を入力してください";
-    readingErrorEl.classList.remove("hidden");
-    return;
-  }
-  if (!isHiragana(newCanonicalNameReading)) {
-    readingErrorEl.textContent = "ひらがなの読み方を入力してください(ひらがなのみ・必須)";
-    readingErrorEl.classList.remove("hidden");
-    return;
-  }
-  readingErrorEl.classList.add("hidden");
-
-  const oldIcon = currentMaster.icon || getCategoryIcon(currentMaster.type, currentMaster.category);
-  const changes = {};
-  if (newCanonicalName !== currentMaster.canonical_name) changes.canonicalName = newCanonicalName;
-  if (newCanonicalNameReading !== (currentMaster.canonical_name_reading || "")) changes.canonicalNameReading = newCanonicalNameReading;
-  if (newIcon !== oldIcon) changes.icon = newIcon;
-  if (newCategory !== currentMaster.category) changes.category = newCategory;
-  if (newSubCategory !== (currentMaster.sub_category || "")) changes.subCategory = newSubCategory;
-  if (newStorage !== (currentMaster.storage || "")) changes.storage = newStorage;
-  if (newUsage !== (currentMaster.usage || "")) changes.usage = newUsage;
-  if (JSON.stringify(editKeywords) !== JSON.stringify(currentMaster.search_keywords || [])) {
-    changes.searchKeywords = editKeywords;
-  }
-
-  if (Object.keys(changes).length === 0) {
-    renderView();
-    return;
-  }
 
   const saveBtn = document.getElementById("product-detail-save-btn");
   const msgEl = document.getElementById("product-detail-save-message");
   saveBtn.disabled = true;
 
-  const updated = await updateProductMasterFields(masterId, changes);
+  const { error } = await supabaseClient
+    .from("household_product_settings")
+    .upsert({ product_master_id: masterId, icon: newIcon || null }, { onConflict: "household_id,product_master_id" });
 
   saveBtn.disabled = false;
 
-  if (!updated) {
+  if (error) {
     msgEl.textContent = "保存に失敗しました。もう一度お試しください。";
     msgEl.className = "msg-error";
     return;
@@ -230,9 +139,34 @@ document.getElementById("product-detail-save-btn").addEventListener("click", asy
   // 保存待ちの間にシートが閉じられた/別の商品に切り替わっていたら、表示の更新はしない
   if (!currentMaster || currentMaster.id !== masterId) return;
 
-  currentMaster = updated;
+  currentIcon = newIcon || null;
   renderView();
   showToast("保存しました");
+});
+
+// ---------- 商品属性の再生成(標準商品名・カテゴリーなどの唯一の修正手段) ----------
+
+document.getElementById("product-detail-regenerate-btn").addEventListener("click", async () => {
+  if (!currentMaster) return;
+  const masterId = currentMaster.id;
+  const regenerateBtn = document.getElementById("product-detail-regenerate-btn");
+  regenerateBtn.disabled = true;
+
+  const updated = await regenerateProductMasterAttributes(masterId, currentMaster.canonical_name);
+
+  regenerateBtn.disabled = false;
+
+  if (!updated) {
+    showAppNotice("再生成に失敗しました。もう一度お試しください");
+    return;
+  }
+
+  if (currentMaster && currentMaster.id === masterId) {
+    currentMaster = updated;
+    renderView();
+  }
+  showAppNotice("AIが商品属性を再生成しました");
+  loadItems(); // 在庫一覧側の表示も最新化する
 });
 
 // ---------- セクションの表示切り替え(モードごと) ----------
@@ -268,6 +202,7 @@ async function openProductDetail({ mode, itemId, itemName, unit, productMasterId
   currentItem = (mode === "item" || mode === "fallback") ? { id: itemId, name: itemName, unit: unit || "" } : null;
   currentMaster = null;
   currentMasterId = mode === "master" ? productMasterId : null;
+  currentIcon = null;
   thresholdCtx = null;
 
   show("product-detail-overlay");
@@ -289,11 +224,10 @@ async function openProductDetail({ mode, itemId, itemName, unit, productMasterId
       return;
     }
 
-    const { data: master, error } = await supabaseClient
-      .from("product_master")
-      .select("*")
-      .eq("id", productMasterId)
-      .maybeSingle();
+    const [{ data: master, error }, { data: settings }] = await Promise.all([
+      supabaseClient.from("product_master").select("*").eq("id", productMasterId).maybeSingle(),
+      supabaseClient.from("household_product_settings").select("icon").eq("product_master_id", productMasterId).maybeSingle()
+    ]);
 
     // 取得待ちの間に閉じられた/別の商品の詳細に切り替わっていたら、表示の更新はしない
     if (!currentItem || currentItem.id !== itemId) return;
@@ -304,16 +238,16 @@ async function openProductDetail({ mode, itemId, itemName, unit, productMasterId
     }
 
     currentMaster = master;
+    currentIcon = settings ? settings.icon : null;
     renderView();
     return;
   }
 
   // mode === "master"
-  const { data: master, error } = await supabaseClient
-    .from("product_master")
-    .select("*")
-    .eq("id", productMasterId)
-    .maybeSingle();
+  const [{ data: master, error }, { data: settings }] = await Promise.all([
+    supabaseClient.from("product_master").select("*").eq("id", productMasterId).maybeSingle(),
+    supabaseClient.from("household_product_settings").select("icon, low_stock_threshold").eq("product_master_id", productMasterId).maybeSingle()
+  ]);
 
   if (currentMasterId !== productMasterId) return;
 
@@ -323,7 +257,8 @@ async function openProductDetail({ mode, itemId, itemName, unit, productMasterId
   }
 
   currentMaster = master;
-  thresholdCtx = { table: "product_master", id: master.id, value: Number(master.low_stock_threshold) || 0, unit: thresholdUnit || "個" };
+  currentIcon = settings ? settings.icon : null;
+  thresholdCtx = { table: "product_master", id: master.id, value: settings ? Number(settings.low_stock_threshold) || 0 : 0, unit: thresholdUnit || "個" };
   renderThresholdDisplay();
   renderView();
 }
@@ -334,6 +269,7 @@ function closeProductDetail() {
   currentItem = null;
   currentMaster = null;
   currentMasterId = null;
+  currentIcon = null;
   thresholdCtx = null;
 }
 
@@ -403,7 +339,8 @@ async function loadAndRenderLots(itemId) {
 // ---------- 在庫設定(最低数量) ----------
 // 在庫確認画面の数量増減([-][+]・タップでドラムロール)と同じ操作感にしている。
 // 増減幅は単位が個数系か定量系(g/mlなど)かで変える(在庫の数量調整と同じ判定)。
-// 保存先は thresholdCtx.table で切り替わる(masterモード: product_master / fallbackモード: items)
+// 保存先はthresholdCtx.tableで切り替わる(masterモード: household_product_settings /
+// fallbackモード: items)
 
 function renderThresholdDisplay() {
   document.getElementById("pd-threshold-display").innerHTML =
@@ -419,19 +356,19 @@ async function persistThreshold(newValue) {
   const { table, id } = thresholdCtx;
   const value = Math.max(0, Math.min(9999, Math.round(newValue) || 0));
 
-  const { error } = await supabaseClient
-    .from(table)
-    .update({ low_stock_threshold: value, updated_at: new Date().toISOString() })
-    .eq("id", id);
-  if (error) {
-    console.error("最低数量の更新に失敗:", error);
-    return;
-  }
-
-  if (table === "product_master") {
-    await syncShoppingListForMaster(id);
-  } else {
+  if (table === "items") {
+    const { error } = await supabaseClient
+      .from("items")
+      .update({ low_stock_threshold: value, updated_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) { console.error("最低数量の更新に失敗:", error); return; }
     await syncShoppingListForItem(id);
+  } else {
+    const { error } = await supabaseClient
+      .from("household_product_settings")
+      .upsert({ product_master_id: id, low_stock_threshold: value }, { onConflict: "household_id,product_master_id" });
+    if (error) { console.error("最低数量の更新に失敗:", error); return; }
+    await syncShoppingListForMaster(id);
   }
 
   // 更新待ちの間に閉じられた/別の商品に切り替わっていたら、表示の更新はしない
@@ -475,15 +412,19 @@ document.getElementById("product-detail-delete-btn").addEventListener("click", a
   loadShoppingList();
 });
 
-// ---------- 商品属性の作成(将来、再生成にも流用する共通処理) ----------
+// ---------- 商品属性の作成(商品マスタが未作成のfallback商品向け) ----------
 
 async function createOrRegenerateProductMaster(itemId, itemName) {
   const createMsgEl = document.getElementById("product-detail-create-message");
+  const createBtn = document.getElementById("product-detail-create-btn");
   createMsgEl.textContent = "";
+  createBtn.disabled = true;
   hide("product-detail-empty");
   show("product-detail-loading");
 
   const resolved = await resolveProductMaster(itemName, { forceRegenerate: true });
+
+  createBtn.disabled = false;
 
   // 生成待ちの間に閉じられた/別の商品の詳細に切り替わっていたら、表示の更新はしない
   // (在庫一覧側の更新(loadItems)だけは、閉じられていても反映して問題ない)
@@ -508,18 +449,23 @@ async function createOrRegenerateProductMaster(itemId, itemName) {
   if (currentItem && currentItem.id === itemId) {
     currentMaster = master;
 
-    // 最低数量の保存先を items からこの商品マスタへ切り替える。新規作成した商品マスタなら、
-    // それまで items 側に設定していた値をそのまま引き継ぐ(既存マスタを再利用した場合は
-    // 他の商品名と共有中の値を上書きしないよう、そのマスタの値をそのまま使う)
+    // 最低数量の保存先を items からこの商品マスタ(household_product_settings)へ切り替える。
+    // 新規作成した商品マスタなら、それまで items 側に設定していた値をそのまま引き継ぐ
+    // (既存マスタを再利用した場合は、他の商品名・他の部屋と共有中の値を上書きしないよう、
+    // その部屋の既存設定をそのまま使う)
     if (thresholdCtx && thresholdCtx.table === "items") {
       if (generatedNew && thresholdCtx.value > 0) {
         await supabaseClient
-          .from("product_master")
-          .update({ low_stock_threshold: thresholdCtx.value, updated_at: new Date().toISOString() })
-          .eq("id", master.id);
-        master.low_stock_threshold = thresholdCtx.value;
+          .from("household_product_settings")
+          .upsert({ product_master_id: master.id, low_stock_threshold: thresholdCtx.value }, { onConflict: "household_id,product_master_id" });
       }
-      thresholdCtx = { table: "product_master", id: master.id, value: Number(master.low_stock_threshold) || 0, unit: thresholdCtx.unit };
+      const { data: settings } = await supabaseClient
+        .from("household_product_settings")
+        .select("icon, low_stock_threshold")
+        .eq("product_master_id", master.id)
+        .maybeSingle();
+      currentIcon = settings ? settings.icon : null;
+      thresholdCtx = { table: "product_master", id: master.id, value: settings ? Number(settings.low_stock_threshold) || 0 : 0, unit: thresholdCtx.unit };
       renderThresholdDisplay();
     }
 

@@ -57,3 +57,28 @@ export function withTotalQuantity(rows) {
     quantity: (item.item_lots || []).reduce((sum, l) => sum + Number(l.quantity), 0)
   }));
 }
+
+// Geminiのレスポンスがレート制限(429/RESOURCE_EXHAUSTED)によるエラーかどうかを判定する
+export function isGeminiRateLimitError(data) {
+  return !!(data && data.error && (data.error.code === 429 || data.error.status === "RESOURCE_EXHAUSTED"));
+}
+
+// Gemini呼び出しがレート制限で失敗した場合、1分待って1回だけ自動的に再試行する
+// (RPM上限は1分単位の枠のため、数秒程度の短い待機では同じ枠内に留まり再度失敗しやすい)。
+// レート制限以外のエラーは再試行せずそのまま投げる。fnは「1回分の呼び出し」を行う関数で、
+// レート制限時は Error に isGeminiRateLimit = true を付けて投げる約束にしている
+export async function withGeminiRetry(fn, onWaiting) {
+  try {
+    return await fn();
+  } catch (e) {
+    if (!e.isGeminiRateLimit) throw e;
+    if (onWaiting) onWaiting();
+    await new Promise(resolve => setTimeout(resolve, 60000));
+    try {
+      return await fn();
+    } catch (e2) {
+      if (e2.isGeminiRateLimit) throw new Error("AIが混み合っているため、再試行にも失敗しました。しばらくしてからお試しください");
+      throw e2;
+    }
+  }
+}

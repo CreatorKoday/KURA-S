@@ -17,7 +17,7 @@ import { showMessage, escapeHtml, showAppNotice, productMasterStatusPrefix } fro
 import { syncShoppingListForItem, addToShoppingList, loadShoppingList } from "./shopping.js";
 import { isContinuousUnit, computeCombinedStockQuantity, representativeUnitForEntries } from "./quantity.js";
 import { openQuantityPicker } from "./quantityPicker.js";
-import { resolveProductMaster, computeItemSearchScore, normalizeProductName, getCategoryIcon } from "./productMaster.js";
+import { resolveProductMaster, computeItemSearchScore, normalizeProductName, resolveItemIcon } from "./productMaster.js";
 import { updateUnitSuggestions } from "./units.js";
 
 // 手動登録画面の数量欄(4桁ドラムロールピッカーで選択した値を保持する)
@@ -1193,7 +1193,7 @@ export function focusInventoryOnItemName(name) {
 export async function loadItems() {
   const { data, error } = await supabaseClient
     .from("items")
-    .select("*, item_lots(*), product_master(icon, canonical_name, canonical_name_reading, type, category, sub_category, sub_category_reading, storage, search_keywords, search_keywords_reading, low_stock_threshold)")
+    .select("*, item_lots(*), product_master(canonical_name, canonical_name_reading, type, category, sub_category, sub_category_reading, storage, search_keywords, search_keywords_reading, household_product_settings(icon, low_stock_threshold))")
     .order("name", { ascending: true });
 
   if (error) {
@@ -1389,16 +1389,6 @@ function lotRowHtml(item, lot) {
   `;
 }
 
-// 商品マスタのicon(手動設定)→無ければカテゴリー既定の絵文字、の順で決める(消費画面の
-// resolveSearchItemIconと同じ考え方)。商品マスタが無い商品はeffectiveType()と同様、
-// items.categoryに種別(食品/日用品)がそのまま入っているため、そのままgetCategoryIconの
-// 第1引数(type)として渡せば適切な既定アイコンにフォールバックする
-function resolveItemIcon(item) {
-  const master = item.product_master;
-  if (master) return master.icon || getCategoryIcon(master.type, master.category);
-  return getCategoryIcon(item.category, null);
-}
-
 // 商品マスタが無い商品向けの、従来どおりの単一商品カード(表示が壊れないフォールバック)
 function itemCardHtml(item) {
   const lots = sortLotsByExpiry(item.item_lots);
@@ -1461,14 +1451,16 @@ function masterGroupCardHtml(group) {
 
   const canonicalName = (group[0].product_master && group[0].product_master.canonical_name) || group[0].name;
 
-  // 最低数量は標準商品名(カード)単位。個数系・定量系が混在する場合は
-  // computeCombinedStockQuantity で定量換算してから合算し、product_master.low_stock_threshold と比較する
+  // 最低数量は標準商品名(カード)単位、かつ部屋ごとに独立(household_product_settings)。
+  // 個数系・定量系が混在する場合はcomputeCombinedStockQuantityで定量換算してから合算し、
+  // 自分の部屋のhousehold_product_settings.low_stock_thresholdと比較する
   const entries = group.map(item => ({
     quantity: (item.item_lots || []).reduce((sum, l) => sum + Number(l.quantity), 0),
     unit: item.unit
   }));
   const combinedQuantity = computeCombinedStockQuantity(entries);
-  const masterThreshold = Number(group[0].product_master && group[0].product_master.low_stock_threshold) || 0;
+  const masterSettings = group[0].product_master && (group[0].product_master.household_product_settings || [])[0];
+  const masterThreshold = Number(masterSettings && masterSettings.low_stock_threshold) || 0;
   const cardLowStock = masterThreshold > 0 && combinedQuantity < masterThreshold;
   const thresholdUnit = representativeUnitForEntries(entries);
 

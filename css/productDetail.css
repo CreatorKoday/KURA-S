@@ -95,6 +95,8 @@
   letter-spacing: 0.06em; text-transform: uppercase;
 }
 
+.product-detail-header-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
 .product-detail-action-btn {
   width: auto; height: auto;
   padding: 6px 12px; margin: 0;

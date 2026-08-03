@@ -8,6 +8,7 @@
 // ==========================================================
 
 import { supabaseClient, GEMINI_API_KEY } from "./config.js";
+import { isGeminiRateLimitError, withGeminiRetry, showAppNotice } from "./utils.js";
 
 export const FOOD_CATEGORIES = [
   "野菜","果物","肉","魚","乳製品","飲料","調味料","お菓子","パン","米","麺類",
@@ -143,45 +144,54 @@ async function identifyProductAttributes(rawName, knownCanonicalNames = []) {
     "ブランド名ではなく商品の種類を優先して分類してください。" +
     knownNamesHint;
 
-  const res = await fetch(
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": GEMINI_API_KEY
-      },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "OBJECT",
-            properties: {
-              canonicalName: { type: "STRING" },
-              canonicalNameReading: { type: "STRING" },
-              type: { type: "STRING", enum: ["食品", "日用品"] },
-              category: { type: "STRING", enum: [...FOOD_CATEGORIES, ...DAILY_CATEGORIES] },
-              subCategory: { type: "STRING" },
-              subCategoryReading: { type: "STRING" },
-              storage: { type: "STRING", enum: [...FOOD_STORAGE_OPTIONS, ...DAILY_STORAGE_OPTIONS] },
-              usage: { type: "STRING", enum: [...FOOD_USAGE_OPTIONS, ...DAILY_USAGE_OPTIONS] },
-              searchKeywords: { type: "ARRAY", items: { type: "STRING" } },
-              searchKeywordsReading: { type: "ARRAY", items: { type: "STRING" } }
-            },
-            required: ["canonicalName", "canonicalNameReading", "type", "category", "searchKeywords", "searchKeywordsReading"]
+  async function callOnce() {
+    const res = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": GEMINI_API_KEY
+        },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0,
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: "OBJECT",
+              properties: {
+                canonicalName: { type: "STRING" },
+                canonicalNameReading: { type: "STRING" },
+                type: { type: "STRING", enum: ["食品", "日用品"] },
+                category: { type: "STRING", enum: [...FOOD_CATEGORIES, ...DAILY_CATEGORIES] },
+                subCategory: { type: "STRING" },
+                subCategoryReading: { type: "STRING" },
+                storage: { type: "STRING", enum: [...FOOD_STORAGE_OPTIONS, ...DAILY_STORAGE_OPTIONS] },
+                usage: { type: "STRING", enum: [...FOOD_USAGE_OPTIONS, ...DAILY_USAGE_OPTIONS] },
+                searchKeywords: { type: "ARRAY", items: { type: "STRING" } },
+                searchKeywordsReading: { type: "ARRAY", items: { type: "STRING" } }
+              },
+              required: ["canonicalName", "canonicalNameReading", "type", "category", "searchKeywords", "searchKeywordsReading"]
+            }
           }
-        }
-      })
-    }
-  );
+        })
+      }
+    );
 
-  const data = await res.json();
-  if (data.error) throw new Error(data.error.message || "商品属性の判定に失敗しました");
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error("商品属性を判定できませんでした");
-  return JSON.parse(text);
+    const data = await res.json();
+    if (isGeminiRateLimitError(data)) {
+      const err = new Error(data.error.message || "AIが混み合っています");
+      err.isGeminiRateLimit = true;
+      throw err;
+    }
+    if (data.error) throw new Error(data.error.message || "商品属性の判定に失敗しました");
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error("商品属性を判定できませんでした");
+    return JSON.parse(text);
+  }
+
+  return await withGeminiRetry(callOnce, () => showAppNotice("AIが混み合っています。1分後に自動で再試行します"));
 }
 
 // 2文字ずつの文字集合(bigram)を作る。日本語は分かち書きが無いため、
@@ -379,51 +389,64 @@ export async function resolveProductMaster(rawName, { forceRegenerate = false } 
   }
 }
 
-// ユーザーによる手動編集を product_master に反映する(AIへの再問い合わせは行わない)。
-// changes に含まれるキーだけを更新し、そのキー名を edited_fields に記録することで、
-// どの項目がAI初期値のままで、どの項目がユーザーによって変更されたかを区別できるようにする。
-// changes のキー: icon / category / subCategory / storage / usage / searchKeywords /
-//               canonicalName / canonicalNameReading
-// 注意: canonicalName(表示名)を変更しても canonical_normalized_name(将来AIが同じ標準商品名と
-// 判定した際に既存マスタを再利用するための照合キー)は変更しない。ここを一緒に書き換えると、
-// 以後AIが元の判定を返すたびに一致しなくなり、毎回新しいマスタが作られてしまうため。
-export async function updateProductMasterFields(id, changes) {
-  const { data: current, error: fetchError } = await supabaseClient
-    .from("product_master")
-    .select("edited_fields")
-    .eq("id", id)
-    .maybeSingle();
-  if (fetchError || !current) {
-    console.error("商品マスタの取得に失敗:", fetchError);
+// household_product_settingsのicon(部屋ごとの手動設定)→無ければカテゴリー既定の絵文字、
+// の順で決める。household_product_settingsはRLSで自分の部屋の行(0〜1件)しか
+// 埋め込まれないため、配列の先頭を読めばよい。商品マスタが無い商品(item.category に
+// 種別が入っている)はカテゴリー既定アイコンにフォールバックする(在庫確認画面・消費画面で共通利用)
+export function resolveItemIcon(item) {
+  const master = item.product_master;
+  if (master) {
+    const settings = (master.household_product_settings || [])[0];
+    return (settings && settings.icon) || getCategoryIcon(master.type, master.category);
+  }
+  return getCategoryIcon(item.category, null);
+}
+
+// 既存の商品マスタ(masterId)を、sourceName(通常はcurrentMaster.canonical_name)を
+// 入力にAIへ再度問い合わせ、その場でmasterId自身の行を上書きする。
+// 標準商品名・カテゴリー・サブカテゴリーなどは部屋をまたいで共有するデータのため、
+// 手動での自由編集は廃止し、この再生成だけを修正手段として提供する
+// (誤字・誤った分類による他の部屋への影響を防ぐため、2026-08〜)。
+// edited_fieldsは再生成後すべてAI判定によるものになるため空にリセットする
+export async function regenerateProductMasterAttributes(masterId, sourceName) {
+  try {
+    const knownNames = await fetchKnownCanonicalNameCandidates(sourceName);
+    const attrs = await identifyProductAttributes(sourceName, knownNames);
+
+    if (!isCategoryValidForType(attrs.type, attrs.category)) {
+      attrs.category = "その他";
+    }
+
+    const canonicalNormalized = normalizeProductName(attrs.canonicalName);
+
+    const { data: updated, error } = await supabaseClient
+      .from("product_master")
+      .update({
+        canonical_name: attrs.canonicalName,
+        canonical_normalized_name: canonicalNormalized,
+        canonical_name_reading: attrs.canonicalNameReading || null,
+        type: attrs.type,
+        category: attrs.category,
+        sub_category: attrs.subCategory || null,
+        sub_category_reading: attrs.subCategoryReading || null,
+        storage: attrs.storage || null,
+        usage: attrs.usage || null,
+        search_keywords: attrs.searchKeywords || [],
+        search_keywords_reading: attrs.searchKeywordsReading || [],
+        edited_fields: [],
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", masterId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("商品マスタの再生成に失敗:", error);
+      return null;
+    }
+    return updated;
+  } catch (e) {
+    console.error("商品マスタの再生成に失敗:", e);
     return null;
   }
-
-  const nextEditedFields = Array.from(new Set([...(current.edited_fields || []), ...Object.keys(changes)]));
-
-  const payload = {
-    updated_at: new Date().toISOString(),
-    edited_fields: nextEditedFields,
-    source: "manual"
-  };
-  if (changes.icon !== undefined) payload.icon = changes.icon || null;
-  if (changes.category !== undefined) payload.category = changes.category;
-  if (changes.subCategory !== undefined) payload.sub_category = changes.subCategory || null;
-  if (changes.storage !== undefined) payload.storage = changes.storage || null;
-  if (changes.usage !== undefined) payload.usage = changes.usage || null;
-  if (changes.searchKeywords !== undefined) payload.search_keywords = changes.searchKeywords;
-  if (changes.canonicalName !== undefined) payload.canonical_name = changes.canonicalName;
-  if (changes.canonicalNameReading !== undefined) payload.canonical_name_reading = changes.canonicalNameReading;
-
-  const { data: updated, error: updateError } = await supabaseClient
-    .from("product_master")
-    .update(payload)
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (updateError) {
-    console.error("商品マスタの更新に失敗:", updateError);
-    return null;
-  }
-  return updated;
 }

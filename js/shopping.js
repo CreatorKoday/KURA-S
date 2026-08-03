@@ -70,13 +70,13 @@ export async function syncShoppingListForItem(itemId) {
 
 // 標準商品名(product_master)単位の低在庫判定。同じ標準商品名を共有するすべての
 // 商品名(items)の在庫を合算し(個数系・定量系の混在はcomputeCombinedStockQuantityで換算)、
-// product_master.low_stock_threshold と比較する。買い物リストへは標準商品名で追加する
+// 自分の部屋のhousehold_product_settings.low_stock_thresholdと比較する
+// (最低数量は部屋ごとに独立している)。買い物リストへは標準商品名で追加する
 export async function syncShoppingListForMaster(masterId) {
-  const { data: master, error: masterError } = await supabaseClient
-    .from("product_master")
-    .select("id, canonical_name, low_stock_threshold")
-    .eq("id", masterId)
-    .single();
+  const [{ data: master, error: masterError }, { data: settings }] = await Promise.all([
+    supabaseClient.from("product_master").select("id, canonical_name").eq("id", masterId).single(),
+    supabaseClient.from("household_product_settings").select("low_stock_threshold").eq("product_master_id", masterId).maybeSingle()
+  ]);
   if (masterError || !master) {
     console.error("商品マスタの取得に失敗(買い物リスト同期):", masterError);
     return;
@@ -122,7 +122,7 @@ export async function syncShoppingListForMaster(masterId) {
   }
   const existing = existingList && existingList.length > 0 ? existingList[0] : null;
 
-  const threshold = Number(master.low_stock_threshold);
+  const threshold = Number(settings && settings.low_stock_threshold) || 0;
   const isLow = threshold > 0 && combinedQuantity < threshold;
 
   if (isLow && !existing) {

@@ -1,0 +1,45 @@
+/* ==========================================================
+   KURA:S デザインシステム ― account.css
+   アカウント画面(ルームキー確認・参加中メンバーの確認/削除)
+   ========================================================== */
+
+.account-member-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: 12px 16px; margin-bottom: 8px;
+  box-shadow: var(--shadow-1);
+  animation: fadeSlideIn .3s ease;
+}
+
+.account-member-name { font-size: 15px; font-weight: 700; color: var(--text); }
+
+.account-member-you { margin-left: 6px; font-size: 11px; font-weight: 600; color: var(--text-tertiary); }
+
+.account-edit-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; flex-shrink: 0;
+  background: none; color: var(--text-tertiary);
+  border-radius: 50%;
+}
+
+.account-edit-btn .material-symbols-rounded { font-size: 18px; }
+
+.account-edit-btn:hover { color: var(--primary); background: var(--primary-soft); }
+
+/* 自分のニックネームをその場で編集する行(編集ボタンを押すと表示に差し替わる) */
+.account-member-row-editing { gap: 8px; }
+
+.account-nickname-input { height: 38px; font-size: 14px; }
+
+.account-edit-save-btn, .account-edit-cancel-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; flex-shrink: 0;
+  border-radius: 50%;
+}
+
+.account-edit-save-btn { background: var(--primary); color: #fff; }
+
+.account-edit-cancel-btn { background: var(--bg-2); color: var(--text-secondary); }
+
+.account-edit-save-btn .material-symbols-rounded,
+.account-edit-cancel-btn .material-symbols-rounded { font-size: 18px; }

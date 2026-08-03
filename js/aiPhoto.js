@@ -4,7 +4,7 @@
 
 import { GEMINI_API_KEY } from "./config.js";
 import { addMessageBox, reviewMessageBox } from "./elements.js";
-import { showMessage, escapeHtml, buildQuantityOptionsHtml, showAppNotice, productMasterStatusPrefix } from "./utils.js";
+import { showMessage, escapeHtml, buildQuantityOptionsHtml, showAppNotice, productMasterStatusPrefix, isGeminiRateLimitError, withGeminiRetry } from "./utils.js";
 import { setupReviewQuantityToggle, isContinuousUnit, getReviewQuantityValue } from "./quantity.js";
 import { upsertItemByName, openRegisterOverlay, closeRegisterOverlay } from "./items.js";
 import { addToShoppingList } from "./shopping.js";
@@ -59,51 +59,60 @@ export async function identifyProductsWithAI(base64Data, mimeType) {
     "unitには個・本・パック・袋・箱など、その商品に自然な単位を日本語で入れてください。" +
     "商品が何も認識できない場合は空の配列を返してください。";
 
-  const res = await fetch(
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": GEMINI_API_KEY
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: prompt },
-            { inline_data: { mime_type: mimeType, data: base64Data } }
-          ]
-        }],
-        generationConfig: {
-          temperature: 0,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "ARRAY",
-            items: {
-              type: "OBJECT",
-              properties: {
-                name: { type: "STRING" },
-                unit: { type: "STRING" },
-                quantity: { type: "NUMBER" }
-              },
-              required: ["name", "unit", "quantity"]
+  async function callOnce() {
+    const res = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": GEMINI_API_KEY
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: prompt },
+              { inline_data: { mime_type: mimeType, data: base64Data } }
+            ]
+          }],
+          generationConfig: {
+            temperature: 0,
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: "ARRAY",
+              items: {
+                type: "OBJECT",
+                properties: {
+                  name: { type: "STRING" },
+                  unit: { type: "STRING" },
+                  quantity: { type: "NUMBER" }
+                },
+                required: ["name", "unit", "quantity"]
+              }
             }
           }
-        }
-      })
+        })
+      }
+    );
+
+    const data = await res.json();
+    if (isGeminiRateLimitError(data)) {
+      const err = new Error(data.error.message || "AIが混み合っています");
+      err.isGeminiRateLimit = true;
+      throw err;
     }
-  );
+    if (data.error) throw new Error(data.error.message || "AIとの通信に失敗しました");
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) return [];
 
-  const data = await res.json();
-  if (data.error) throw new Error(data.error.message || "AIとの通信に失敗しました");
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) return [];
-
-  try {
-    return JSON.parse(text);
-  } catch (e) {
-    throw new Error("AIの応答を解析できませんでした");
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      throw new Error("AIの応答を解析できませんでした");
+    }
   }
+
+  return await withGeminiRetry(callOnce, () => showAppNotice("AIが混み合っています。1分後に自動で再試行します"));
 }
 
 function renderReviewList(items) {

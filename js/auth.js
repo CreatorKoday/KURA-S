@@ -23,7 +23,7 @@
 
 import { supabaseClient } from "./config.js";
 import { authCard, loggedInArea, messageBox, userNicknameLabel } from "./elements.js";
-import { showMessage } from "./utils.js";
+import { showMessage, escapeHtml } from "./utils.js";
 import { switchView } from "./navigation.js";
 import { loadShoppingList } from "./shopping.js";
 
@@ -35,6 +35,8 @@ function showEntryForm() {
   document.getElementById("auth-forgot-key-form").classList.add("hidden");
   document.getElementById("auth-mail-sent").classList.add("hidden");
   document.getElementById("auth-key-reveal").classList.add("hidden");
+  existingNicknames = [];
+  renderNicknameSuggestions();
 }
 
 function showLoggedIn(member) {
@@ -206,6 +208,81 @@ document.getElementById("auth-key-continue-btn").addEventListener("click", () =>
   document.getElementById("auth-key-reveal").classList.add("hidden");
   document.getElementById("join-room-key").value = key;
   document.getElementById("auth-join-form").classList.remove("hidden");
+  fetchExistingNicknames(); // .valueの直接代入はinputイベントを発火しないため、ここで明示的に取得する
+});
+
+// ---------- ニックネーム候補(そのルームキーに既に入室しているメンバー) ----------
+// ルームキーを入力すると、そのキーの部屋に既に入室しているメンバーのニックネームを
+// 候補として表示する。タップして選ぶと「同じユーザーとして入室」できることを
+// わかりやすくする(join_household_by_key側で、完全一致するニックネームは新規メンバー
+// を追加せず既存メンバーの入室を引き継ぐ仕様になっているため、sql/025参照)。
+// 誤って他人と同じ名前で入室してしまう事故を防ぐため、候補と完全一致する名前での
+// 送信時は確認ダイアログを挟む
+
+let existingNicknames = [];
+let nicknameFetchTimer = null;
+let nicknameSuggestionsHideTimer = null;
+
+async function fetchExistingNicknames() {
+  const roomKey = document.getElementById("join-room-key").value.trim();
+  if (!roomKey) {
+    existingNicknames = [];
+    renderNicknameSuggestions();
+    return;
+  }
+  const { data, error } = await supabaseClient.rpc("get_household_member_nicknames", { p_room_key: roomKey });
+  existingNicknames = error ? [] : (data || []).map(row => row.nickname);
+  renderNicknameSuggestions();
+}
+
+function renderNicknameSuggestions() {
+  const listEl = document.getElementById("join-nickname-suggestions");
+  const nicknameInput = document.getElementById("join-nickname");
+  const shouldShow = document.activeElement === nicknameInput && existingNicknames.length > 0;
+
+  if (!shouldShow) {
+    listEl.classList.add("hidden");
+    listEl.innerHTML = "";
+    return;
+  }
+
+  listEl.innerHTML = `
+    <div class="nickname-suggestion-header">入室中のユーザー</div>
+    ${existingNicknames.map(name => `
+      <div class="nickname-suggestion-row" data-nickname="${escapeHtml(name)}">
+        <span class="nickname-suggestion-name">${escapeHtml(name)}</span>
+        <span class="nickname-suggestion-hint">タップして同じユーザーとして入室</span>
+      </div>
+    `).join("")}
+  `;
+  listEl.classList.remove("hidden");
+}
+
+document.getElementById("join-room-key").addEventListener("input", () => {
+  clearTimeout(nicknameFetchTimer);
+  nicknameFetchTimer = setTimeout(fetchExistingNicknames, 350);
+});
+document.getElementById("join-room-key").addEventListener("blur", () => {
+  clearTimeout(nicknameFetchTimer);
+  fetchExistingNicknames();
+});
+
+document.getElementById("join-nickname").addEventListener("focus", renderNicknameSuggestions);
+
+// mousedownの時点で候補選択を処理する(blurより先に発火させるため。blur後だと
+// 候補欄が非表示になった後になり、クリックしたつもりの要素が既に消えてしまう)
+document.getElementById("join-nickname").addEventListener("blur", () => {
+  nicknameSuggestionsHideTimer = setTimeout(() => {
+    document.getElementById("join-nickname-suggestions").classList.add("hidden");
+  }, 150);
+});
+
+document.getElementById("join-nickname-suggestions").addEventListener("mousedown", (e) => {
+  const row = e.target.closest(".nickname-suggestion-row");
+  if (!row) return;
+  clearTimeout(nicknameSuggestionsHideTimer);
+  document.getElementById("join-nickname").value = row.dataset.nickname;
+  document.getElementById("join-nickname-suggestions").classList.add("hidden");
 });
 
 document.getElementById("join-room-btn").addEventListener("click", async () => {
@@ -214,6 +291,14 @@ document.getElementById("join-room-btn").addEventListener("click", async () => {
   if (!roomKey || !nickname) {
     showMessage(messageBox, "ルームキーとニックネームを入力してください", true);
     return;
+  }
+
+  if (existingNicknames.includes(nickname)) {
+    const confirmed = confirm(
+      `「${nickname}」はこの部屋に既に入室しているユーザーです。同じユーザーとして入室しますか？\n` +
+      `(別の端末でこのニックネームを使っていた場合、そちらでの入室情報は上書きされます)`
+    );
+    if (!confirmed) return;
   }
 
   const { error } = await supabaseClient.rpc("join_household_by_key", { p_room_key: roomKey, p_nickname: nickname });

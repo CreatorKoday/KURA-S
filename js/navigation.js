@@ -4,6 +4,7 @@
 
 import { loadShoppingList } from "./shopping.js";
 import { loadItems } from "./items.js";
+import { loadAccountInfo } from "./account.js";
 
 export function switchView(view) {
   document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
@@ -23,6 +24,7 @@ export function switchView(view) {
   }
   if (view === "shopping") loadShoppingList();
   if (view === "inventory") loadItems();
+  if (view === "account") loadAccountInfo();
 }
 
 document.querySelectorAll(".nav-btn").forEach(btn => {
