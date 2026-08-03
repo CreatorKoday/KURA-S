@@ -57,29 +57,16 @@
       <button type="button" class="auth-link-btn" id="auth-goto-create-btn">新規作成はこちら</button>
     </div>
 
-    <!-- 部屋の新規作成 ①: メールアドレスに確認コードを送る。
+    <!-- 部屋の新規作成: メールアドレスにSupabaseのマジックリンクを送る。
          誤ったメールアドレスで部屋が作られてしまうのを防ぐため、この時点では
-         まだ部屋を作らず、次のステップでコードを確認できて初めて部屋を作成する -->
+         まだ部屋を作らず、実際にそのメールのリンクを開いて所有権を確認できて
+         初めて部屋を作成する(ニックネームは後の入室ステップで入力する) -->
     <div id="auth-create-form" class="hidden">
       <label for="create-email">メールアドレス</label>
       <input type="email" id="create-email" placeholder="you@example.com">
 
-      <label for="create-nickname">ニックネーム</label>
-      <input type="text" id="create-nickname" placeholder="例: たろう">
-
-      <button class="btn-primary" id="create-send-code-btn"><span class="material-symbols-rounded">mail</span> 確認コードを送る</button>
+      <button class="btn-primary" id="create-send-link-btn"><span class="material-symbols-rounded">mail</span> 確認メールを送る</button>
       <button type="button" class="auth-link-btn" id="auth-create-cancel-btn">入室画面に戻る</button>
-    </div>
-
-    <!-- 部屋の新規作成 ②: 届いた確認コードを入力する。ここで検証に成功して
-         初めてcreate_household(部屋の作成)を呼ぶ -->
-    <div id="auth-create-code-form" class="hidden">
-      <p class="section-label">確認コードを入力</p>
-      <label for="create-code">メールに届いた6桁のコード</label>
-      <input type="text" id="create-code" inputmode="numeric" pattern="[0-9]*" placeholder="123456">
-
-      <button class="btn-primary" id="create-verify-code-btn"><span class="material-symbols-rounded">check</span> 確認する</button>
-      <button type="button" class="auth-link-btn" id="auth-create-code-cancel-btn">入室画面に戻る</button>
     </div>
 
     <!-- 「キーを忘れた場合」: 部屋作成時に登録したメールアドレス宛にSupabaseの
@@ -95,32 +82,24 @@
     </div>
 
     <!-- 確認メール送信直後の案内(この端末でメール内のリンクを開くとキー表示画面に進む) -->
-    <div id="auth-forgot-key-sent" class="hidden">
+    <div id="auth-mail-sent" class="hidden">
       <p class="section-label">確認メールを送信しました</p>
-      <p class="auth-key-note">届いたメール内のリンクを、この端末で開いてください。リンクを開くとルームキーが表示されます。</p>
-      <button type="button" class="auth-link-btn" id="auth-forgot-key-sent-back-btn">入室画面に戻る</button>
+      <p class="auth-key-note">届いたメール内のリンクを開いてください。リンクを開くとルームキーが表示されます(ホーム画面に追加したアプリをお使いの場合は、Safari等で開いた画面でキーをコピーし、アプリ側に貼り付けて入室してください)。</p>
+      <button type="button" class="auth-link-btn" id="auth-mail-sent-back-btn">入室画面に戻る</button>
     </div>
 
-    <!-- メール内のリンクを開き、メールアドレスの所有権が確認できた後にルームキーを表示する
-         (部屋作成直後の表示と共通のスタイルを使う) -->
-    <div id="auth-forgot-key-reveal" class="hidden">
-      <p class="section-label">キーが見つかりました</p>
-      <div class="auth-key-display">
-        <span id="auth-forgot-key-text"></span>
-        <button type="button" id="auth-forgot-key-copy-btn" aria-label="キーをコピー"><span class="material-symbols-rounded">content_copy</span></button>
-      </div>
-      <button class="btn-primary" id="auth-forgot-key-back-btn">入室画面に戻る</button>
-    </div>
-
-    <!-- 部屋作成直後だけ表示し、ルームキーを控えてもらう画面 -->
+    <!-- メール内のリンクを開き、メールアドレスの所有権が確認できた後にルームキーだけを表示する
+         (部屋の新規作成・キーを忘れた場合のどちらでも共通で使う)。ここでは入室は行わず、
+         コピーボタン(別アプリ/別タブに貼り付ける用)と「そのまま入室に進む」
+         (同じ画面のまま入室フォームにキーを自動入力する用)の両方を用意する -->
     <div id="auth-key-reveal" class="hidden">
-      <p class="section-label">部屋を作成しました</p>
-      <p class="auth-key-note">このキーを家族・知り合いに共有してください。キーを紛失すると入室し直せなくなるため、必ず控えておいてください。</p>
+      <p class="section-label" id="auth-key-reveal-title">キーが見つかりました</p>
+      <p class="auth-key-note" id="auth-key-reveal-note"></p>
       <div class="auth-key-display">
         <span id="auth-key-text"></span>
         <button type="button" id="auth-key-copy-btn" aria-label="キーをコピー"><span class="material-symbols-rounded">content_copy</span></button>
       </div>
-      <button class="btn-primary" id="auth-key-continue-btn">はじめる</button>
+      <button class="btn-primary" id="auth-key-continue-btn">そのまま入室に進む</button>
     </div>
 
     <div id="message"></div>

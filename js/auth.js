@@ -3,16 +3,19 @@
 //
 // ログインにメール/パスワードは使わず、Supabaseの匿名サインインを裏側で使う。
 // 認証画面は既定で「キーで入室」(ルームキー+ニックネーム)を表示し、
-// 新規作成は「新規作成はこちら」から別画面(メールアドレス+ニックネーム→確認コード入力)
-// で行う。誤ったメールアドレスで部屋が作られてしまうのを防ぐため、確認コードの検証に
-// 成功するまでは部屋(households/household_members)を一切作らない
-// (signInWithOtpでコードを送るだけの段階では何も作成されず、verifyOtpでの検証成功後に
-// 初めてcreate_householdを呼ぶ)。
-// 部屋作成時のメールアドレスは、入室画面の「キーを忘れた場合」でもルームキーを
-// 確認するために使う(こちらはSupabaseのマジックリンクで所有権を確認する)。
-// メール確認(送信コードの検証・マジックリンクのクリック)が成功すると、その場のセッションが
-// 匿名から実メールアドレスの認証済みセッションに置き換わるため、確認後は毎回
-// 再度匿名サインインし直して通常の入室待ち状態に戻す。
+// 新規作成は「新規作成はこちら」から別画面(メールアドレスのみ)で行う。
+//
+// 部屋の新規作成・「キーを忘れた場合」は、どちらもSupabaseのマジックリンクで
+// メールアドレスの所有権を確認する方式に統一している(確認コードのメール本文表示は
+// 2026-06-03以降Supabase無料プランのデフォルトメール機能ではテンプレート編集が
+// できず表示できないため、テンプレート編集不要のマジックリンク方式にした)。
+// メール内のリンクを開くとセッションが匿名から実メールアドレスの認証済み
+// セッションに置き換わるため、`init()`がこれを検知して`handleVerifiedEmailReturn()`を呼び、
+// クエリパラメータ`auth_intent`で「新規作成」か「キーを忘れた場合」かを判別した上で
+// 該当するRPCを呼び、結果のルームキーだけを共通の`#auth-key-reveal`画面に表示する
+// (この時点ではまだhousehold_membersへの登録は行わない。部屋の作成者も他の
+// メンバーと同じ`join_household_by_key`経由で実際に入室する)。
+// キー表示後は`signOut`→`signInAnonymously`で通常の入室待ち状態に戻す。
 // household_id(部屋の分離)・actor_nickname(誰が操作したか)は
 // DB側の関数(current_household_id/current_nickname、sql/017参照)が
 // insert時に自動設定するため、アプリ側では意識する必要がない。
@@ -29,10 +32,8 @@ function showEntryForm() {
   loggedInArea.classList.add("hidden");
   document.getElementById("auth-join-form").classList.remove("hidden");
   document.getElementById("auth-create-form").classList.add("hidden");
-  document.getElementById("auth-create-code-form").classList.add("hidden");
   document.getElementById("auth-forgot-key-form").classList.add("hidden");
-  document.getElementById("auth-forgot-key-sent").classList.add("hidden");
-  document.getElementById("auth-forgot-key-reveal").classList.add("hidden");
+  document.getElementById("auth-mail-sent").classList.add("hidden");
   document.getElementById("auth-key-reveal").classList.add("hidden");
 }
 
@@ -67,33 +68,63 @@ async function fetchCurrentMembership() {
 // household_membersへのinsertが失敗し分かりにくいエラーになる。フォーム自体を隠して防ぐ
 function showBlockedState() {
   document.getElementById("auth-create-form").classList.add("hidden");
-  document.getElementById("auth-create-code-form").classList.add("hidden");
   document.getElementById("auth-join-form").classList.add("hidden");
   document.getElementById("auth-forgot-key-form").classList.add("hidden");
-  document.getElementById("auth-forgot-key-sent").classList.add("hidden");
-  document.getElementById("auth-forgot-key-reveal").classList.add("hidden");
+  document.getElementById("auth-mail-sent").classList.add("hidden");
   document.getElementById("auth-key-reveal").classList.add("hidden");
 }
 
+// キーだけを表示する共通画面(部屋の新規作成・キーを忘れた場合のどちらでも使う)。
+// コピーボタン(別アプリ/別タブに貼り付ける用)と「そのまま入室に進む」
+// (同じ画面のまま入室フォームにキーを自動入力する用)の両方を用意する
+function showKeyReveal(title, note, roomKey) {
+  document.getElementById("auth-key-reveal-title").textContent = title;
+  document.getElementById("auth-key-reveal-note").textContent = note;
+  document.getElementById("auth-key-text").textContent = roomKey;
+  document.getElementById("auth-join-form").classList.add("hidden");
+  document.getElementById("auth-key-reveal").classList.remove("hidden");
+}
+
 // メール内のマジックリンクを開いて戻ってきた(=メールアドレスの所有権を確認できた)場合、
-// そのメールアドレスに紐づくルームキーを検索して表示する。表示後は、この端末を
-// 通常の(まだどの部屋にも参加していない)入室待ち状態に戻すため、匿名サインインし直す
+// クエリパラメータ(auth_intent)に応じて「部屋の新規作成」か「キーを忘れた場合」の
+// どちらかを行う。結果表示後は、この端末を通常の(まだどの部屋にも参加していない)
+// 入室待ち状態に戻すため、匿名サインインし直す
 async function handleVerifiedEmailReturn() {
-  const { data: roomKey, error } = await supabaseClient.rpc("find_room_key_for_verified_email");
+  const intent = new URLSearchParams(location.search).get("auth_intent");
+  history.replaceState(null, "", location.pathname);
+
+  let roomKey = null;
+  let errorMessage = null;
+
+  if (intent === "create") {
+    const { data, error } = await supabaseClient.rpc("create_household_pending").single();
+    if (error) {
+      const duplicateEmail = error.message.includes("duplicate") || error.message.includes("unique");
+      errorMessage = duplicateEmail ? "このメールアドレスはすでに部屋の作成に使われています" : "部屋の作成に失敗しました: " + error.message;
+    } else {
+      roomKey = data.room_key;
+    }
+  } else {
+    const { data, error } = await supabaseClient.rpc("find_room_key_for_verified_email");
+    if (error || !data) errorMessage = "登録されているキーが見つかりませんでした";
+    else roomKey = data;
+  }
 
   await supabaseClient.auth.signOut();
   await supabaseClient.auth.signInAnonymously();
 
   showEntryForm();
 
-  if (error || !roomKey) {
-    showMessage(messageBox, "登録されているキーが見つかりませんでした", true);
+  if (errorMessage) {
+    showMessage(messageBox, errorMessage, true);
     return;
   }
 
-  document.getElementById("auth-join-form").classList.add("hidden");
-  document.getElementById("auth-forgot-key-text").textContent = roomKey;
-  document.getElementById("auth-forgot-key-reveal").classList.remove("hidden");
+  showKeyReveal(
+    intent === "create" ? "部屋を作成しました" : "キーが見つかりました",
+    "このキーを家族・知り合いに共有してください。キーを紛失すると入室し直せなくなるため、必ず控えておいてください。",
+    roomKey
+  );
 }
 
 async function init() {
@@ -118,7 +149,7 @@ async function init() {
 }
 init();
 
-// 「新規作成はこちら」: 入室画面から部屋作成画面(①メール入力)に切り替える
+// 「新規作成はこちら」: 入室画面から部屋作成画面に切り替える
 document.getElementById("auth-goto-create-btn").addEventListener("click", () => {
   showMessage(messageBox, "", false);
   document.getElementById("auth-join-form").classList.add("hidden");
@@ -131,68 +162,32 @@ document.getElementById("auth-create-cancel-btn").addEventListener("click", () =
   document.getElementById("auth-join-form").classList.remove("hidden");
 });
 
-document.getElementById("auth-create-code-cancel-btn").addEventListener("click", () => {
-  showMessage(messageBox, "", false);
-  document.getElementById("auth-create-code-form").classList.add("hidden");
-  document.getElementById("auth-join-form").classList.remove("hidden");
-});
-
-// 部屋作成①: メールアドレスに確認コードを送る(この時点では部屋はまだ作らない)
-document.getElementById("create-send-code-btn").addEventListener("click", async () => {
+// 部屋の新規作成: メールアドレスにマジックリンクを送る(この時点では部屋はまだ作らない)
+document.getElementById("create-send-link-btn").addEventListener("click", async () => {
   const email = document.getElementById("create-email").value.trim();
-  const nickname = document.getElementById("create-nickname").value.trim();
-  if (!email || !nickname) {
-    showMessage(messageBox, "メールアドレスとニックネームを入力してください", true);
+  if (!email) {
+    showMessage(messageBox, "メールアドレスを入力してください", true);
     return;
   }
 
-  const { error } = await supabaseClient.auth.signInWithOtp({ email });
+  const { error } = await supabaseClient.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: window.location.origin + "?auth_intent=create" }
+  });
   if (error) {
-    showMessage(messageBox, "確認コードの送信に失敗しました: " + error.message, true);
+    showMessage(messageBox, "確認メールの送信に失敗しました: " + error.message, true);
     return;
   }
 
   showMessage(messageBox, "", false);
   document.getElementById("auth-create-form").classList.add("hidden");
-  document.getElementById("create-code").value = "";
-  document.getElementById("auth-create-code-form").classList.remove("hidden");
+  document.getElementById("auth-mail-sent").classList.remove("hidden");
 });
 
-// 部屋作成②: 確認コードを検証し、成功した場合だけcreate_householdで部屋を作る
-document.getElementById("create-verify-code-btn").addEventListener("click", async () => {
-  const email = document.getElementById("create-email").value.trim();
-  const nickname = document.getElementById("create-nickname").value.trim();
-  const code = document.getElementById("create-code").value.trim();
-  if (!code) {
-    showMessage(messageBox, "確認コードを入力してください", true);
-    return;
-  }
-
-  const { error: verifyError } = await supabaseClient.auth.verifyOtp({ email, token: code, type: "email" });
-  if (verifyError) {
-    showMessage(messageBox, "確認コードが正しくないか、有効期限が切れています", true);
-    return;
-  }
-
-  // 確認済みの実メールアドレスセッションから、他の入室経路と同じ匿名セッションに戻してから部屋を作る
-  await supabaseClient.auth.signOut();
-  await supabaseClient.auth.signInAnonymously();
-
-  const { data, error } = await supabaseClient
-    .rpc("create_household", { p_email: email, p_nickname: nickname })
-    .single();
-  if (error) {
-    const duplicateEmail = error.message.includes("duplicate") || error.message.includes("unique");
-    showMessage(messageBox, duplicateEmail
-      ? "このメールアドレスはすでに部屋の作成に使われています"
-      : "部屋の作成に失敗しました: " + error.message, true);
-    return;
-  }
-
+document.getElementById("auth-mail-sent-back-btn").addEventListener("click", () => {
   showMessage(messageBox, "", false);
-  document.getElementById("auth-create-code-form").classList.add("hidden");
-  document.getElementById("auth-key-text").textContent = data.room_key;
-  document.getElementById("auth-key-reveal").classList.remove("hidden");
+  document.getElementById("auth-mail-sent").classList.add("hidden");
+  document.getElementById("auth-join-form").classList.remove("hidden");
 });
 
 document.getElementById("auth-key-copy-btn").addEventListener("click", async () => {
@@ -205,8 +200,12 @@ document.getElementById("auth-key-copy-btn").addEventListener("click", async () 
   }
 });
 
-document.getElementById("auth-key-continue-btn").addEventListener("click", async () => {
-  renderAuthState(await fetchCurrentMembership());
+// 「そのまま入室に進む」: キー表示画面から、ルームキー欄に自動入力した入室フォームに進む
+document.getElementById("auth-key-continue-btn").addEventListener("click", () => {
+  const key = document.getElementById("auth-key-text").textContent;
+  document.getElementById("auth-key-reveal").classList.add("hidden");
+  document.getElementById("join-room-key").value = key;
+  document.getElementById("auth-join-form").classList.remove("hidden");
 });
 
 document.getElementById("join-room-btn").addEventListener("click", async () => {
@@ -240,12 +239,6 @@ document.getElementById("auth-forgot-key-cancel-btn").addEventListener("click", 
   document.getElementById("auth-join-form").classList.remove("hidden");
 });
 
-document.getElementById("auth-forgot-key-sent-back-btn").addEventListener("click", () => {
-  showMessage(messageBox, "", false);
-  document.getElementById("auth-forgot-key-sent").classList.add("hidden");
-  document.getElementById("auth-join-form").classList.remove("hidden");
-});
-
 document.getElementById("forgot-key-submit-btn").addEventListener("click", async () => {
   const email = document.getElementById("forgot-key-email").value.trim();
   if (!email) {
@@ -255,7 +248,7 @@ document.getElementById("forgot-key-submit-btn").addEventListener("click", async
 
   const { error } = await supabaseClient.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo: window.location.origin }
+    options: { emailRedirectTo: window.location.origin + "?auth_intent=forgot_key" }
   });
   if (error) {
     showMessage(messageBox, "確認メールの送信に失敗しました: " + error.message, true);
@@ -264,24 +257,7 @@ document.getElementById("forgot-key-submit-btn").addEventListener("click", async
 
   showMessage(messageBox, "", false);
   document.getElementById("auth-forgot-key-form").classList.add("hidden");
-  document.getElementById("auth-forgot-key-sent").classList.remove("hidden");
-});
-
-document.getElementById("auth-forgot-key-copy-btn").addEventListener("click", async () => {
-  const key = document.getElementById("auth-forgot-key-text").textContent;
-  try {
-    await navigator.clipboard.writeText(key);
-    showMessage(messageBox, "キーをコピーしました", false);
-  } catch {
-    showMessage(messageBox, "コピーできませんでした。手動で控えてください", true);
-  }
-});
-
-document.getElementById("auth-forgot-key-back-btn").addEventListener("click", () => {
-  const key = document.getElementById("auth-forgot-key-text").textContent;
-  document.getElementById("auth-forgot-key-reveal").classList.add("hidden");
-  document.getElementById("join-room-key").value = key;
-  document.getElementById("auth-join-form").classList.remove("hidden");
+  document.getElementById("auth-mail-sent").classList.remove("hidden");
 });
 
 // 「退室」: この端末のセッションを破棄する。再度この部屋を使うにはルームキーの再入力が必要
