@@ -7,21 +7,26 @@ export function showMessage(el, text, isError) {
   el.className = isError ? "msg-error" : "msg-ok";
 }
 
-// 画面上部(KURA:Sロゴの下)の共通通知欄。登録・消費・買い物リスト追加などの
-// 完了メッセージ(緑色だったもの)はここに集約して表示する。表示後は自動的に消える
+// 画面上部に浮かぶiPhone通知風のバナー。登録・消費・買い物リスト追加などの
+// 完了メッセージ(緑色だったもの)はここに集約して表示する。position:fixedで
+// .wrapの外側に置いているため、商品登録オーバーレイなど他のシートより常に手前に表示され、
+// 表示後は自動的にスライドアウトして消える
 let appNoticeTimer = null;
 export function showAppNotice(text) {
   const el = document.getElementById("app-notice");
   if (!el) return;
   clearTimeout(appNoticeTimer);
   if (!text) {
-    el.classList.add("hidden");
-    el.textContent = "";
+    el.classList.remove("show");
     return;
   }
-  el.textContent = text;
-  el.classList.remove("hidden");
-  appNoticeTimer = setTimeout(() => el.classList.add("hidden"), 4000);
+  el.querySelector(".app-notice-text").textContent = text;
+  // 連続で呼ばれた場合(表示中に次の通知が来た場合)も、一度クラスを外してから
+  // 付け直すことで毎回スライドインのアニメーションが再生されるようにする
+  el.classList.remove("show");
+  void el.offsetWidth; // reflow
+  el.classList.add("show");
+  appNoticeTimer = setTimeout(() => el.classList.remove("show"), 4000);
 }
 
 // upsertItemByName()/resolveItem() が返す productMasterStatus から、

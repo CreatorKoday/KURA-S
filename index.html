@@ -117,7 +117,6 @@
           <button id="logout-btn" aria-label="この端末から退室"><span class="material-symbols-rounded">logout</span></button>
         </div>
       </div>
-      <div id="app-notice" class="app-notice hidden"></div>
     </div>
 
     <!-- AI写真判定の判定失敗メッセージ(判定結果がまだ無く商品登録オーバーレイを開く前の段階で表示するため、
@@ -868,6 +867,13 @@
 
     <div id="consume-message"></div>
   </div>
+</div>
+
+<!-- 完了メッセージ用のiPhone通知風バナー(オーバーレイの手前にも常に表示されるよう、
+     .wrapの外側・body直下に置く。表示内容はjs/utils.jsのshowAppNotice()が設定する) -->
+<div id="app-notice" class="app-notice">
+  <span class="app-notice-icon material-symbols-rounded">check</span>
+  <span class="app-notice-text"></span>
 </div>
 
 <!-- 保存完了などを知らせる汎用トースト -->

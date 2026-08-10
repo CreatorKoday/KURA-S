@@ -339,10 +339,10 @@ button:active { transform: scale(0.96); }
 .app-header-top.hidden { display: none; }
 
 /* ホーム画面以外ではKURA:Sロゴ・ログアウト行を隠す(js/navigation.jsのswitchViewが
-   .app-header-topにhiddenを付け外しする)。ただし共通通知欄(#app-notice)は他の画面でも
-   案内メッセージを表示できるよう隠さない。ロゴ行・通知欄のどちらも表示するものが無い時だけ、
-   空のカードが浮いて見えないようカード自体の余白・枠線を消す */
-.app-header:has(.app-header-top.hidden):has(#app-notice.hidden) {
+   .app-header-topにhiddenを付け外しする)。共通通知欄(#app-notice)は.app-headerの外に
+   固定表示するiPhone通知風バナーに分離済みのため、ここでは.app-header-topだけを見ればよく、
+   隠れている間は空のカードが浮いて見えないようカード自体の余白・枠線も消す */
+.app-header:has(.app-header-top.hidden) {
   padding: 0;
   margin-bottom: 0;
   border: none;
@@ -379,27 +379,58 @@ button:active { transform: scale(0.96); }
 
 .app-header-user button:hover { background: var(--primary-soft); color: var(--primary); }
 
-/* 画面上部の共通通知欄(登録・消費・買い物リスト追加などの完了メッセージをここに集約する)。
-   独立したカードにはせず、KURA:Sロゴと同じ.app-header内に収め、カードの縦幅を広げて表示する */
+/* 画面上部に浮かぶiPhone通知風バナー(登録・消費・買い物リスト追加などの完了メッセージを
+   ここに集約する)。.wrapの外側・body直下に置いたposition:fixed要素のため、他のオーバーレイ
+   (商品登録シートなど、いずれもz-indexは最大1500程度)より必ず手前に表示され、
+   backdrop-filterを持つ親要素の重なりコンテキストにも影響されない */
 .app-notice {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border);
-  color: var(--primary);
-  font-size: 11px;
+  position: fixed;
+  top: max(env(safe-area-inset-top), 14px);
+  left: 50%;
+  z-index: 2000;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(90vw, 380px);
+  padding: 10px 16px;
+  background: var(--surface-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-3);
+  color: var(--text);
+  font-size: 12.5px;
   font-weight: 600;
-  text-align: center;
-  animation: fadeSlideIn .25s ease;
+  line-height: 1.4;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -16px) scale(0.96);
+  transition: opacity .22s ease, transform .35s cubic-bezier(.32, .95, .34, 1.25);
 }
 
-.app-notice.hidden { display: none; }
+.app-notice.show {
+  opacity: 1;
+  transform: translate(-50%, 0) scale(1);
+}
 
-/* ロゴ行が隠れている(ホーム画面以外の)間は、ロゴ行との区切り線だった上余白・罫線が
-   宙に浮いて見えてしまうため消す(通知欄だけがそのままカード上端に来る見た目にする) */
-.app-header:has(.app-header-top.hidden) .app-notice {
-  margin-top: 0;
-  padding-top: 0;
-  border-top: none;
+.app-notice-icon {
+  flex-shrink: 0;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--gradient-primary);
+  color: #fff;
+  font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.app-notice-text {
+  flex: 1;
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
 }
 
 /* 手動登録・手動消費の完了検知に使う旧メッセージ欄は、成功時の見た目だけ非表示にする
