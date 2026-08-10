@@ -23,7 +23,7 @@
 
 import { supabaseClient } from "./config.js";
 import { authCard, loggedInArea, messageBox, userNicknameLabel } from "./elements.js";
-import { showMessage, escapeHtml } from "./utils.js";
+import { showMessage, showAppNotice, escapeHtml } from "./utils.js";
 import { switchView } from "./navigation.js";
 import { loadShoppingList } from "./shopping.js";
 
@@ -87,6 +87,57 @@ function showKeyReveal(title, note, roomKey) {
   document.getElementById("auth-key-reveal").classList.remove("hidden");
 }
 
+// アカウント画面からの「メールアドレスを変更する」で戻ってきた場合の処理。
+// マジックリンク確認直後のセッションは、元々部屋に入室していた匿名セッションとは別物
+// (auth.uid()が変わる)ため、js/account.jsが送信前にlocalStorageへ保存しておいた
+// ルームキー・元の匿名セッションの認証情報を使って「対象の部屋を特定して更新」→
+// 「元のセッションへ復元」の2段階を行う。同じ端末・同じブラウザでリンクを開いた
+// 場合のみ復元でき、復元できない場合(別端末で開いた等)は通常の入室待ち状態に戻す
+async function handleEmailChangeReturn() {
+  const roomKey = localStorage.getItem("kurasEmailChangeRoomKey");
+  const pendingSessionRaw = localStorage.getItem("kurasEmailChangeSession");
+  localStorage.removeItem("kurasEmailChangeRoomKey");
+  localStorage.removeItem("kurasEmailChangeSession");
+
+  let errorMessage = null;
+  if (!roomKey) {
+    errorMessage = "変更手続きの情報が見つかりませんでした。もう一度お試しください";
+  } else {
+    const { error } = await supabaseClient.rpc("update_household_email", { p_room_key: roomKey });
+    if (error) {
+      const duplicateEmail = error.message.includes("duplicate") || error.message.includes("unique");
+      errorMessage = duplicateEmail ? "このメールアドレスは既に他の部屋で使われています" : "メールアドレスの変更に失敗しました";
+    }
+  }
+
+  if (pendingSessionRaw) {
+    try {
+      const pendingSession = JSON.parse(pendingSessionRaw);
+      const { error: restoreError } = await supabaseClient.auth.setSession(pendingSession);
+      if (!restoreError) {
+        renderAuthState(await fetchCurrentMembership());
+        switchView("account");
+        if (errorMessage) showMessage(document.getElementById("account-message"), errorMessage, true);
+        else showAppNotice("メールアドレスを変更しました");
+        return;
+      }
+    } catch {
+      // JSON解析失敗等はフォールバック(下の通常の入室待ち状態への復帰)へ進む
+    }
+  }
+
+  // 元のセッションへ復元できない場合(別端末でリンクを開いた等)は、
+  // この端末では改めてルームキーでの入室が必要な通常の状態に戻す
+  await supabaseClient.auth.signOut();
+  await supabaseClient.auth.signInAnonymously();
+  showEntryForm();
+  showMessage(
+    messageBox,
+    errorMessage || "メールアドレスを変更しました。この端末は部屋に入室していないため、ルームキーで入室してください",
+    !!errorMessage
+  );
+}
+
 // メール内のマジックリンクを開いて戻ってきた(=メールアドレスの所有権を確認できた)場合、
 // クエリパラメータ(auth_intent)に応じて「部屋の新規作成」か「キーを忘れた場合」の
 // どちらかを行う。結果表示後は、この端末を通常の(まだどの部屋にも参加していない)
@@ -94,6 +145,11 @@ function showKeyReveal(title, note, roomKey) {
 async function handleVerifiedEmailReturn() {
   const intent = new URLSearchParams(location.search).get("auth_intent");
   history.replaceState(null, "", location.pathname);
+
+  if (intent === "change_email") {
+    await handleEmailChangeReturn();
+    return;
+  }
 
   let roomKey = null;
   let errorMessage = null;

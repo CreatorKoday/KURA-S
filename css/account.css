@@ -43,3 +43,5 @@
 
 .account-edit-save-btn .material-symbols-rounded,
 .account-edit-cancel-btn .material-symbols-rounded { font-size: 18px; }
+
+.account-email-value { font-size: 14px; color: var(--text); margin: 4px 0 10px; word-break: break-all; }

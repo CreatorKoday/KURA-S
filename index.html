@@ -416,6 +416,25 @@
       </div>
       <button type="button" class="auth-link-btn" id="account-regenerate-key-btn">キーを再発行する</button>
 
+      <!-- 連絡先メールアドレス(households.email、「キーを忘れた場合」で使う)の確認・変更。
+           変更はなりすまし防止のためマジックリンクでの所有権確認を経由する(js/auth.jsの
+           change_email分岐、sql/027参照) -->
+      <p class="section-label" style="margin-top:28px;">連絡先メールアドレス</p>
+      <p class="account-email-value" id="account-household-email"></p>
+      <button type="button" class="auth-link-btn" id="account-change-email-btn">メールアドレスを変更する</button>
+
+      <div id="account-change-email-form" class="hidden">
+        <label for="account-new-email">新しいメールアドレス</label>
+        <input type="email" id="account-new-email" placeholder="you@example.com">
+        <button class="btn-primary" id="account-change-email-send-btn"><span class="material-symbols-rounded">mail</span> 確認メールを送る</button>
+        <button type="button" class="auth-link-btn" id="account-change-email-cancel-btn">キャンセル</button>
+      </div>
+
+      <div id="account-change-email-sent" class="hidden">
+        <p class="auth-key-note">確認メールを送信しました。届いたメール内のリンクを<strong>同じ端末・同じブラウザ</strong>で開くと変更が完了します。</p>
+        <button type="button" class="auth-link-btn" id="account-change-email-sent-close-btn">閉じる</button>
+      </div>
+
       <p class="section-label" style="margin-top:28px;">参加中のメンバー</p>
       <div id="account-member-list"></div>
 

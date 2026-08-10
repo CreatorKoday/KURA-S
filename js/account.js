@@ -27,10 +27,11 @@ export async function loadAccountInfo() {
 
   const { data: household, error: householdError } = await supabaseClient
     .from("households")
-    .select("room_key")
+    .select("room_key, email")
     .maybeSingle();
   if (householdError) console.error("ルームキーの取得に失敗:", householdError);
   document.getElementById("account-room-key").textContent = household ? household.room_key : "";
+  document.getElementById("account-household-email").textContent = household ? household.email : "";
 
   const { data, error: membersError } = await supabaseClient
     .from("household_members")
@@ -129,6 +130,62 @@ document.getElementById("account-regenerate-key-btn").addEventListener("click", 
 
   document.getElementById("account-room-key").textContent = newKey;
   showAppNotice("ルームキーを再発行しました");
+});
+
+// 連絡先メールアドレスの変更: 新規作成・キーを忘れた場合と同じくマジックリンクで
+// 新しいメールアドレスの所有権を確認してから反映する(js/auth.jsのchange_email分岐、
+// sql/027参照)。マジックリンクを開くとセッションが今の匿名セッション(部屋に入室中)から
+// 一時的な確認用セッションに置き換わってしまうため、送信前に今のセッションの認証情報を
+// localStorageへ保存しておき、確認完了後にjs/auth.js側で元のセッションへ復元する
+document.getElementById("account-change-email-btn").addEventListener("click", () => {
+  showMessage(messageBox, "", false);
+  document.getElementById("account-new-email").value = "";
+  document.getElementById("account-change-email-sent").classList.add("hidden");
+  document.getElementById("account-change-email-form").classList.remove("hidden");
+});
+
+document.getElementById("account-change-email-cancel-btn").addEventListener("click", () => {
+  document.getElementById("account-change-email-form").classList.add("hidden");
+});
+
+document.getElementById("account-change-email-sent-close-btn").addEventListener("click", () => {
+  document.getElementById("account-change-email-sent").classList.add("hidden");
+});
+
+document.getElementById("account-change-email-send-btn").addEventListener("click", async () => {
+  const newEmail = document.getElementById("account-new-email").value.trim();
+  if (!newEmail) {
+    showMessage(messageBox, "メールアドレスを入力してください", true);
+    return;
+  }
+
+  const roomKey = document.getElementById("account-room-key").textContent;
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (!roomKey || !session) {
+    showMessage(messageBox, "現在の状態を確認できませんでした。もう一度お試しください", true);
+    return;
+  }
+
+  localStorage.setItem("kurasEmailChangeRoomKey", roomKey);
+  localStorage.setItem("kurasEmailChangeSession", JSON.stringify({
+    access_token: session.access_token,
+    refresh_token: session.refresh_token
+  }));
+
+  const { error } = await supabaseClient.auth.signInWithOtp({
+    email: newEmail,
+    options: { emailRedirectTo: window.location.origin + "?auth_intent=change_email" }
+  });
+  if (error) {
+    localStorage.removeItem("kurasEmailChangeRoomKey");
+    localStorage.removeItem("kurasEmailChangeSession");
+    showMessage(messageBox, "確認メールの送信に失敗しました: " + error.message, true);
+    return;
+  }
+
+  showMessage(messageBox, "", false);
+  document.getElementById("account-change-email-form").classList.add("hidden");
+  document.getElementById("account-change-email-sent").classList.remove("hidden");
 });
 
 document.getElementById("account-member-list").addEventListener("click", async (e) => {
