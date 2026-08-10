@@ -191,7 +191,7 @@ async function identifyProductAttributes(rawName, knownCanonicalNames = []) {
     return JSON.parse(text);
   }
 
-  return await withGeminiRetry(callOnce, () => showAppNotice("AIが混み合っています。1分後に自動で再試行します"));
+  return await withGeminiRetry(callOnce, () => showAppNotice("AIが混雑中。1分後に再試行します"));
 }
 
 // 2文字ずつの文字集合(bigram)を作る。日本語は分かち書きが無いため、

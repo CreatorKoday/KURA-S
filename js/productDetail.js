@@ -144,7 +144,7 @@ document.getElementById("product-detail-regenerate-btn").addEventListener("click
   regenerateBtn.disabled = false;
 
   if (!updated) {
-    showAppNotice("再生成に失敗しました。もう一度お試しください");
+    showAppNotice("再生成に失敗しました");
     return;
   }
 
@@ -152,7 +152,7 @@ document.getElementById("product-detail-regenerate-btn").addEventListener("click
     currentMaster = updated;
     renderView();
   }
-  showAppNotice("AIが商品属性を再生成しました");
+  showAppNotice("商品属性を再生成しました");
   loadItems(); // 在庫一覧側の表示も最新化する
 });
 
@@ -458,7 +458,7 @@ async function createOrRegenerateProductMaster(itemId, itemName) {
 
     renderView();
   }
-  showAppNotice(generatedNew ? "AIが商品属性を生成しました" : "既存の商品属性を利用しました");
+  showAppNotice(generatedNew ? "商品属性を生成しました" : "既存の属性を利用しました");
   loadItems(); // 在庫一覧側の表示も最新化する
 }
 

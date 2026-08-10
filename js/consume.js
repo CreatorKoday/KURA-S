@@ -199,7 +199,7 @@ document.getElementById("consume-photo-input").addEventListener("change", async 
   const file = e.target.files[0];
   if (!file) return;
 
-  showAppNotice("AIが商品を判定中です。少々お待ちください...");
+  showAppNotice("AIが商品を判定中です…");
 
   try {
     const base64Data = await fileToBase64(file);

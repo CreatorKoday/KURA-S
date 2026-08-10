@@ -17,7 +17,7 @@ document.getElementById("photo-input").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
-  showAppNotice("AIが商品を判定中です。少々お待ちください...");
+  showAppNotice("AIが商品を判定中です…");
 
   try {
     const base64Data = await fileToBase64(file);
@@ -112,7 +112,7 @@ export async function identifyProductsWithAI(base64Data, mimeType) {
     }
   }
 
-  return await withGeminiRetry(callOnce, () => showAppNotice("AIが混み合っています。1分後に自動で再試行します"));
+  return await withGeminiRetry(callOnce, () => showAppNotice("AIが混雑中。1分後に再試行します"));
 }
 
 function renderReviewList(items) {
@@ -266,7 +266,7 @@ async function addReviewCardToShoppingList(card) {
 
   card.remove();
   closeReviewIfEmpty();
-  const message = result.duplicate ? `「${name}」はすでに買い物リストにあります` : `「${name}」を買い物リストに追加しました`;
+  const message = result.duplicate ? `「${name}」は追加済みです` : `「${name}」を買い物リストへ追加`;
   showMessage(addMessageBox, message, false);
   showAppNotice(message);
 }
@@ -283,8 +283,6 @@ document.getElementById("register-all-btn").addEventListener("click", async () =
   }
 
   let count = 0;
-  let generatedCount = 0;
-  let reusedCount = 0;
   let needsCategoryCount = 0;
   const cardsToRemove = [];
 
@@ -308,8 +306,6 @@ document.getElementById("register-all-btn").addEventListener("click", async () =
 
     cardsToRemove.push(card);
     count++;
-    if (result.productMasterStatus === "generated") generatedCount++;
-    else if (result.productMasterStatus === "reused") reusedCount++;
   }
 
   if (count === 0 && needsCategoryCount === 0) {
@@ -327,10 +323,7 @@ document.getElementById("register-all-btn").addEventListener("click", async () =
 
   closeRegisterOverlay();
 
-  const masterDetails = [];
-  if (generatedCount > 0) masterDetails.push("AI生成" + generatedCount + "件");
-  if (reusedCount > 0) masterDetails.push("既存利用" + reusedCount + "件");
-  const message = count + "件登録しました" + (masterDetails.length > 0 ? "(" + masterDetails.join("・") + ")" : "");
+  const message = count + "件登録しました";
   showMessage(addMessageBox, message, false);
   showAppNotice(message);
 });
@@ -363,9 +356,7 @@ document.getElementById("add-all-to-shopping-btn").addEventListener("click", asy
 
   closeRegisterOverlay();
 
-  const message = duplicateCount > 0
-    ? `${addedCount}件を買い物リストに追加しました(${duplicateCount}件は追加済みでした)`
-    : `${addedCount}件を買い物リストに追加しました`;
+  const message = `${addedCount}件を買い物リストに追加しました`;
   showMessage(addMessageBox, message, false);
   showAppNotice(message);
 });

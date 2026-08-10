@@ -938,7 +938,7 @@ document.getElementById("inventory-sort-clear-btn").addEventListener("click", ()
 // 「デフォルトに設定」: 現在選択中の内容(4階層すべて)をブラウザに保存する(反映はしない)
 document.getElementById("inventory-sort-default-btn").addEventListener("click", () => {
   saveInventorySortDefault(stagedInventorySortByLevel);
-  showAppNotice("この並び替えをデフォルトに設定しました");
+  showAppNotice("並び替えをデフォルトに設定しました");
 });
 
 document.getElementById("inventory-sort-apply-btn").addEventListener("click", () => {
@@ -1538,7 +1538,7 @@ document.getElementById("add-item-btn").addEventListener("click", async () => {
     return;
   }
 
-  const message = productMasterStatusPrefix(result.productMasterStatus) + "登録しました(同じ商品・同じ賞味期限があれば数量をまとめました)";
+  const message = productMasterStatusPrefix(result.productMasterStatus) + "登録しました";
   showMessage(manualAddMessageBox, message, false);
   showAppNotice(message);
 
@@ -1567,7 +1567,7 @@ document.getElementById("add-to-shopping-manual-btn").addEventListener("click", 
     return;
   }
 
-  const message = result.duplicate ? `「${name}」はすでに買い物リストにあります` : `「${name}」を買い物リストに追加しました`;
+  const message = result.duplicate ? `「${name}」は追加済みです` : `「${name}」を買い物リストへ追加`;
   showMessage(manualAddMessageBox, message, false);
   showAppNotice(message);
   resetManualRegisterForm();

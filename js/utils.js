@@ -32,8 +32,8 @@ export function showAppNotice(text) {
 // upsertItemByName()/resolveItem() が返す productMasterStatus から、
 // 登録完了メッセージに添える前置き文を作る(該当なしの場合は空文字)
 export function productMasterStatusPrefix(status) {
-  if (status === "generated") return "AIが商品属性を生成しました。";
-  if (status === "reused") return "既存の商品属性を利用しました。";
+  if (status === "generated") return "AIが生成。";
+  if (status === "reused") return "既存属性を利用。";
   return "";
 }
 
