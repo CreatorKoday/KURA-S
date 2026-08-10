@@ -88,15 +88,19 @@ function showKeyReveal(title, note, roomKey) {
 }
 
 // アカウント画面からの「メールアドレスを変更する」で戻ってきた場合の処理。
-// マジックリンク確認直後のセッションは、元々部屋に入室していた匿名セッションとは別物
-// (auth.uid()が変わる)ため、js/account.jsが送信前にlocalStorageへ保存しておいた
-// ルームキー・元の匿名セッションの認証情報を使って「対象の部屋を特定して更新」→
-// 「元のセッションへ復元」の2段階を行う。同じ端末・同じブラウザでリンクを開いた
-// 場合のみ復元でき、復元できない場合(別端末で開いた等)は通常の入室待ち状態に戻す
-async function handleEmailChangeReturn() {
-  const roomKey = localStorage.getItem("kurasEmailChangeRoomKey");
+// 対象の部屋を特定するルームキーは、マジックリンクのURL自体(クエリパラメータ)から
+// 受け取る。ホーム画面に追加してアプリ化(PWA)している場合、メール内のリンクは
+// アプリ内ではなくSafari側で開かれ、SafariとPWAはlocalStorageを共有しないため、
+// localStorage経由だと更新処理そのものが失敗してしまう(URLのクエリパラメータは
+// リンクとしてそのままSafari側にも渡るため確実に読める)。
+// マジックリンク確認直後のセッションは、元々部屋に入室していた匿名セッションとは
+// 別物(auth.uid()が変わる)になるため、更新後は「同じブラウザでリンクを開いた
+// 場合に限り」js/account.jsが送信前にlocalStorageへ保存しておいた元の匿名セッションへの
+// 復元を試みる(あくまでおまけの利便性向上で、復元できなくても更新自体は既に成功している。
+// PWA利用時など復元できない場合、そもそも触っていないPWA側のセッションはそのまま
+// 入室状態を保っているため実害はない)
+async function handleEmailChangeReturn(roomKey) {
   const pendingSessionRaw = localStorage.getItem("kurasEmailChangeSession");
-  localStorage.removeItem("kurasEmailChangeRoomKey");
   localStorage.removeItem("kurasEmailChangeSession");
 
   let errorMessage = null;
@@ -126,14 +130,16 @@ async function handleEmailChangeReturn() {
     }
   }
 
-  // 元のセッションへ復元できない場合(別端末でリンクを開いた等)は、
-  // この端末では改めてルームキーでの入室が必要な通常の状態に戻す
+  // このブラウザでは元のセッションへ復元できない(別ブラウザ・PWAのSafari起動等)場合、
+  // この画面(Safari等)だけを改めてルームキー入力が必要な通常の入室待ち状態に戻す。
+  // ホーム画面に追加したアプリ側のセッションはこの処理では一切触れていないため、
+  // 更新が成功していればそちらは変わらず入室状態のまま使い続けられる
   await supabaseClient.auth.signOut();
   await supabaseClient.auth.signInAnonymously();
   showEntryForm();
   showMessage(
     messageBox,
-    errorMessage || "メールアドレスを変更しました。この端末は部屋に入室していないため、ルームキーで入室してください",
+    errorMessage || "メールアドレスを変更しました。ホーム画面に追加したアプリ側はそのまま入室した状態です",
     !!errorMessage
   );
 }
@@ -143,11 +149,13 @@ async function handleEmailChangeReturn() {
 // どちらかを行う。結果表示後は、この端末を通常の(まだどの部屋にも参加していない)
 // 入室待ち状態に戻すため、匿名サインインし直す
 async function handleVerifiedEmailReturn() {
-  const intent = new URLSearchParams(location.search).get("auth_intent");
+  const params = new URLSearchParams(location.search);
+  const intent = params.get("auth_intent");
+  const roomKeyParam = params.get("room_key");
   history.replaceState(null, "", location.pathname);
 
   if (intent === "change_email") {
-    await handleEmailChangeReturn();
+    await handleEmailChangeReturn(roomKeyParam);
     return;
   }
 

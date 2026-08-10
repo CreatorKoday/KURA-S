@@ -134,9 +134,17 @@ document.getElementById("account-regenerate-key-btn").addEventListener("click", 
 
 // 連絡先メールアドレスの変更: 新規作成・キーを忘れた場合と同じくマジックリンクで
 // 新しいメールアドレスの所有権を確認してから反映する(js/auth.jsのchange_email分岐、
-// sql/027参照)。マジックリンクを開くとセッションが今の匿名セッション(部屋に入室中)から
-// 一時的な確認用セッションに置き換わってしまうため、送信前に今のセッションの認証情報を
-// localStorageへ保存しておき、確認完了後にjs/auth.js側で元のセッションへ復元する
+// sql/027参照)。対象の部屋を特定するためのルームキーはlocalStorageではなく
+// マジックリンクのURL自体(emailRedirectToのクエリパラメータ)に載せる。ホーム画面に
+// 追加してアプリ化(PWA)している場合、メール内のリンクはアプリ内ではなくSafari側で
+// 開かれ、SafariとPWAはlocalStorageを共有しないため、localStorage経由だと
+// 更新処理そのものが失敗してしまうため(URLのクエリパラメータはリンクとして
+// そのままSafari側にも渡るため確実に読める)。
+// あわせて、今のセッションの認証情報もlocalStorageへ保存しておく。こちらは
+// 「同じブラウザでリンクを開いた場合に、そのブラウザで元の部屋にそのまま
+// 戻れるようにする」ためのおまけの復元用で、復元できなくても更新自体は成功する
+// (PWA利用時など復元できない場合は、そもそも触っていないPWA側のセッションが
+// そのまま入室状態を保っているため実害はない)
 document.getElementById("account-change-email-btn").addEventListener("click", () => {
   showMessage(messageBox, "", false);
   document.getElementById("account-new-email").value = "";
@@ -166,18 +174,17 @@ document.getElementById("account-change-email-send-btn").addEventListener("click
     return;
   }
 
-  localStorage.setItem("kurasEmailChangeRoomKey", roomKey);
   localStorage.setItem("kurasEmailChangeSession", JSON.stringify({
     access_token: session.access_token,
     refresh_token: session.refresh_token
   }));
 
+  const redirectUrl = window.location.origin + "?auth_intent=change_email&room_key=" + encodeURIComponent(roomKey);
   const { error } = await supabaseClient.auth.signInWithOtp({
     email: newEmail,
-    options: { emailRedirectTo: window.location.origin + "?auth_intent=change_email" }
+    options: { emailRedirectTo: redirectUrl }
   });
   if (error) {
-    localStorage.removeItem("kurasEmailChangeRoomKey");
     localStorage.removeItem("kurasEmailChangeSession");
     showMessage(messageBox, "確認メールの送信に失敗しました: " + error.message, true);
     return;
