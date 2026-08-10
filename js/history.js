@@ -50,6 +50,7 @@ function historyViewRowHtml(row) {
       <td><span class="history-event-badge ${badgeClass}">${badgeText}</span></td>
       <td>${row.quantity}${escapeHtml(row.unit)}</td>
       <td>${priceText}</td>
+      <td>${escapeHtml(row.actor_nickname || "—")}</td>
       <td></td>
     </tr>
   `;
@@ -79,6 +80,7 @@ function historyEditRowHtml(row) {
       </td>
       <td><input type="number" class="history-edit-input history-edit-qty" data-field="quantity" value="${row.quantity}">${escapeHtml(row.unit)}</td>
       <td><input type="number" class="history-edit-input" data-field="price" value="${priceValue}"></td>
+      <td>${escapeHtml(row.actor_nickname || "—")}</td>
       <td>
         <button type="button" class="del-btn" data-action="delete-history-row" data-id="${row.id}" aria-label="この記録を削除">
           <span class="material-symbols-rounded">delete</span>
@@ -189,13 +191,13 @@ function renderHistoryTable() {
   table.classList.toggle("day-view", isSingleDayHistoryView());
 
   if (lastHistoryData.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8">まだ購入・消費の記録がありません。</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9">まだ購入・消費の記録がありません。</td></tr>';
     return;
   }
 
   const filtered = lastHistoryData.filter(matchesHistoryFilters).sort(compareHistoryRows);
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8">条件に一致する記録がありません。</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9">条件に一致する記録がありません。</td></tr>';
     return;
   }
 
@@ -212,13 +214,13 @@ function renderHistoryExpandTable() {
   table.classList.toggle("day-view", isSingleDayHistoryView());
 
   if (lastHistoryData.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8">まだ購入・消費の記録がありません。</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9">まだ購入・消費の記録がありません。</td></tr>';
     return;
   }
 
   const filtered = lastHistoryData.filter(matchesHistoryFilters).sort(compareHistoryRows);
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8">条件に一致する記録がありません。</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9">条件に一致する記録がありません。</td></tr>';
     return;
   }
 
@@ -252,7 +254,7 @@ export async function loadItemHistory() {
     .limit(HISTORY_LIMIT);
 
   if (error) {
-    tbody.innerHTML = `<tr><td colspan="8">読み込みエラー: ${escapeHtml(error.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9">読み込みエラー: ${escapeHtml(error.message)}</td></tr>`;
     return;
   }
 
