@@ -336,7 +336,27 @@ export async function resolveProductMaster(rawName, { forceRegenerate = false } 
       .maybeSingle();
 
     if (existingMaster) {
-      master = existingMaster;
+      // ひらがな読み列(sql/011)の追加より前に作成された商品マスタなど、読み方が
+      // 未設定のまま残っている場合、今回AIが生成済みのattrsの値でその場で補完する
+      // (この呼び出しで既に取得済みの値を使うだけなので、AI呼び出しは増えない)
+      const backfill = {};
+      if (!existingMaster.canonical_name_reading && attrs.canonicalNameReading) backfill.canonical_name_reading = attrs.canonicalNameReading;
+      if (!existingMaster.sub_category_reading && attrs.subCategoryReading) backfill.sub_category_reading = attrs.subCategoryReading;
+      if ((!existingMaster.search_keywords_reading || existingMaster.search_keywords_reading.length === 0) && attrs.searchKeywordsReading?.length) {
+        backfill.search_keywords_reading = attrs.searchKeywordsReading;
+      }
+
+      if (Object.keys(backfill).length > 0) {
+        const { data: updated } = await supabaseClient
+          .from("product_master")
+          .update(backfill)
+          .eq("id", existingMaster.id)
+          .select()
+          .single();
+        master = updated || existingMaster;
+      } else {
+        master = existingMaster;
+      }
     } else {
       const { data: inserted, error: insertError } = await supabaseClient
         .from("product_master")

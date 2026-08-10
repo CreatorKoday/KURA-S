@@ -53,13 +53,6 @@ function showToast(text) {
 
 // ---------- 表示モード ----------
 
-function applyBadge(elId, field) {
-  const el = document.getElementById(elId);
-  const edited = !!currentMaster.edited_fields?.includes(field);
-  el.className = "product-detail-source-badge " + (edited ? "manual" : "ai");
-  el.textContent = edited ? "👤 過去に編集された内容" : "🤖 AIが設定";
-}
-
 function renderView() {
   hide("product-detail-loading");
   hide("product-detail-empty");
@@ -80,12 +73,6 @@ function renderView() {
   document.getElementById("pd-sub-category").textContent = currentMaster.sub_category || "未設定";
   document.getElementById("pd-storage").textContent = currentMaster.storage || "未設定";
   document.getElementById("pd-usage").textContent = currentMaster.usage || "未設定";
-
-  applyBadge("pd-category-badge", "category");
-  applyBadge("pd-sub-category-badge", "subCategory");
-  applyBadge("pd-storage-badge", "storage");
-  applyBadge("pd-usage-badge", "usage");
-  applyBadge("pd-keywords-badge", "searchKeywords");
 
   const keywords = currentMaster.search_keywords || [];
   document.getElementById("pd-keywords").innerHTML = keywords.length

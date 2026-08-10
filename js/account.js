@@ -115,6 +115,22 @@ document.getElementById("account-key-copy-btn").addEventListener("click", async 
   }
 });
 
+// ルームキーの再発行: 参加中のメンバーには影響しない(household_idは変わらない)が、
+// 今のキーを知っている人でも再発行後は入室できなくなる(キー漏洩時・メンバー削除後の
+// 再入室防止のため)
+document.getElementById("account-regenerate-key-btn").addEventListener("click", async () => {
+  if (!confirm("ルームキーを再発行しますか？再発行すると、今のキーでは入室できなくなります。")) return;
+
+  const { data: newKey, error } = await supabaseClient.rpc("regenerate_room_key");
+  if (error) {
+    showMessage(messageBox, "キーの再発行に失敗しました", true);
+    return;
+  }
+
+  document.getElementById("account-room-key").textContent = newKey;
+  showAppNotice("ルームキーを再発行しました");
+});
+
 document.getElementById("account-member-list").addEventListener("click", async (e) => {
   const delBtn = e.target.closest(".del-btn");
   if (delBtn) {

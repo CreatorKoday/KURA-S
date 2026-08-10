@@ -345,8 +345,18 @@ document.getElementById("forgot-key-submit-btn").addEventListener("click", async
   document.getElementById("auth-mail-sent").classList.remove("hidden");
 });
 
-// 「退室」: この端末のセッションを破棄する。再度この部屋を使うにはルームキーの再入力が必要
+// 「退室」: household_membersの自分の行を削除してから、この端末のセッションを破棄する。
+// 再度この部屋を使うにはルームキーの再入力が必要(household_membersを削除しないと
+// 「参加中メンバー」に残り続けてしまうため、実際にメンバーから抜ける処理にしている。
+// item_history.actor_nicknameは記録時点のニックネームをコピーした単なるテキスト列で
+// household_membersを参照していないため、退室しても過去の履歴表示には影響しない)
 document.getElementById("logout-btn").addEventListener("click", async () => {
+  if (!confirm("この部屋から退室しますか？再度参加するにはルームキーの入力が必要です。")) return;
+
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (user) {
+    await supabaseClient.from("household_members").delete().eq("user_id", user.id);
+  }
   await supabaseClient.auth.signOut();
   location.reload();
 });
