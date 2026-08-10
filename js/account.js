@@ -18,6 +18,7 @@ const messageBox = document.getElementById("account-message");
 let members = [];
 let myUserId = null;
 let editingMemberId = null;
+let changeEmailSentTimer = null;
 
 export async function loadAccountInfo() {
   const { data: { user } } = await supabaseClient.auth.getUser();
@@ -148,6 +149,7 @@ document.getElementById("account-regenerate-key-btn").addEventListener("click", 
 document.getElementById("account-change-email-btn").addEventListener("click", () => {
   showMessage(messageBox, "", false);
   document.getElementById("account-new-email").value = "";
+  clearTimeout(changeEmailSentTimer);
   document.getElementById("account-change-email-sent").classList.add("hidden");
   document.getElementById("account-change-email-form").classList.remove("hidden");
 });
@@ -157,6 +159,7 @@ document.getElementById("account-change-email-cancel-btn").addEventListener("cli
 });
 
 document.getElementById("account-change-email-sent-close-btn").addEventListener("click", () => {
+  clearTimeout(changeEmailSentTimer);
   document.getElementById("account-change-email-sent").classList.add("hidden");
 });
 
@@ -193,6 +196,12 @@ document.getElementById("account-change-email-send-btn").addEventListener("click
   showMessage(messageBox, "", false);
   document.getElementById("account-change-email-form").classList.add("hidden");
   document.getElementById("account-change-email-sent").classList.remove("hidden");
+  // 案内を出しっぱなしにしないよう、1分後に自動で閉じる(閉じても送信済みの
+  // 確認メール自体には影響しない)
+  clearTimeout(changeEmailSentTimer);
+  changeEmailSentTimer = setTimeout(() => {
+    document.getElementById("account-change-email-sent").classList.add("hidden");
+  }, 60000);
 });
 
 document.getElementById("account-member-list").addEventListener("click", async (e) => {

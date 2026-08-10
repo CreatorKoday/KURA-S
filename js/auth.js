@@ -137,11 +137,7 @@ async function handleEmailChangeReturn(roomKey) {
   await supabaseClient.auth.signOut();
   await supabaseClient.auth.signInAnonymously();
   showEntryForm();
-  showMessage(
-    messageBox,
-    errorMessage || "メールアドレスを変更しました。ホーム画面に追加したアプリ側はそのまま入室した状態です",
-    !!errorMessage
-  );
+  showMessage(messageBox, errorMessage || "メールアドレスを変更しました", !!errorMessage);
 }
 
 // メール内のマジックリンクを開いて戻ってきた(=メールアドレスの所有権を確認できた)場合、
