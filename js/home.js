@@ -10,6 +10,7 @@ import { escapeHtml } from "./utils.js";
 import { switchView } from "./navigation.js";
 import { closeRegisterOverlay, focusInventoryOnItemName } from "./items.js";
 import { ANNIVERSARIES } from "./anniversaries.js";
+import { isContinuousUnit } from "./quantity.js";
 
 // ---------- 完了したら自動でオーバーレイを閉じる ----------
 
@@ -105,6 +106,49 @@ function formatNoticeExpiry(expiryDate) {
 const expiryNoticeData = { expired: [], days3: [], week: [], month: [] };
 let activeExpiryNoticeKey = null;
 
+// ---------- 使い切り目安 ----------
+//
+// めんつゆのような減りにくい商品は、賞味期限が近づいてようやく「まだこんなに残っていた」と
+// 気づきがちなため、登録(購入)時点の賞味期限が長い商品(定量系90日以上/個数系180日以上)を
+// 対象に、経過日数から見て理想的にはあと何%残っているべきかを表示する(実際の消費量とは
+// 比較しない、あくまで時間ベースの目安)。賞味期限切れのロットは「期限切れ」タブと役割が
+// 重複するため対象外。並び順は目安%が低い(=最も消費が遅れていそうな)順
+const PACE_NOTICE_THRESHOLD_DAYS = { continuous: 90, count: 180 };
+let paceNoticeData = [];
+let paceNoticePanelOpen = false;
+
+function computePaceNotice(lot) {
+  if (!lot.expiry_date || !lot.purchase_date || !lot.items) return null;
+
+  const shelfLifeAtPurchase = daysBetween(lot.purchase_date, lot.expiry_date);
+  const daysLeft = daysBetween(localDateKey(new Date()), lot.expiry_date);
+  if (daysLeft < 0) return null;
+
+  const threshold = isContinuousUnit(lot.items.unit) ? PACE_NOTICE_THRESHOLD_DAYS.continuous : PACE_NOTICE_THRESHOLD_DAYS.count;
+  if (shelfLifeAtPurchase < threshold) return null;
+
+  const idealRemainingPct = Math.max(0, Math.min(100, Math.round((daysLeft / shelfLifeAtPurchase) * 100)));
+  return { lot, idealRemainingPct };
+}
+
+function renderPaceNoticePanel() {
+  const panel = document.getElementById("pace-notice-panel");
+
+  panel.innerHTML = paceNoticeData.length === 0
+    ? '<div class="expiry-notice-empty">該当する商品はありません</div>'
+    : paceNoticeData.map(({ lot, idealRemainingPct }) => {
+        const pctClass = idealRemainingPct < 30 ? "low" : idealRemainingPct < 60 ? "mid" : "";
+        return `
+          <div class="expiry-notice-item" data-item-name="${escapeHtml(lot.items.name)}">
+            <span class="expiry-notice-item-name">${escapeHtml(lot.items.name)}</span>
+            <span class="expiry-notice-item-expiry">${escapeHtml(formatNoticeExpiry(lot.expiry_date))}</span>
+            <span class="expiry-notice-item-qty">${lot.quantity}${escapeHtml(lot.items.unit)}</span>
+            <span class="pace-notice-item-pct ${pctClass}">目安${idealRemainingPct}%</span>
+          </div>
+        `;
+      }).join("");
+}
+
 function renderExpiryNoticePanel(key) {
   const panel = document.getElementById("expiry-notice-panel");
   const lots = expiryNoticeData[key];
@@ -161,6 +205,14 @@ async function loadExpiryNotices() {
   expiryNoticeData.week = week;
   expiryNoticeData.month = month;
 
+  // 使い切り目安も同じ取得結果から集計する(追加の問い合わせはしない)
+  paceNoticeData = data
+    .map(computePaceNotice)
+    .filter(Boolean)
+    .sort((a, b) => a.idealRemainingPct - b.idealRemainingPct);
+  document.getElementById("pace-notice-count").textContent = paceNoticeData.length;
+  if (paceNoticePanelOpen) renderPaceNoticePanel();
+
   document.getElementById("expiry-notice-count-expired").textContent = expired.length;
   document.getElementById("expiry-notice-count-days3").textContent = days3.length;
   document.getElementById("expiry-notice-count-week").textContent = week.length;
@@ -193,6 +245,24 @@ document.querySelectorAll(".expiry-notice-tab").forEach(tab => {
 
 // パネル内の商品をタップすると、在庫確認画面でその商品名だけに絞り込んで表示する
 document.getElementById("expiry-notice-panel").addEventListener("click", (e) => {
+  const row = e.target.closest(".expiry-notice-item");
+  if (!row) return;
+  switchView("inventory");
+  focusInventoryOnItemName(row.dataset.itemName);
+});
+
+// 使い切り目安の見出しをタップすると開閉する(③の各タブと同じトグル動作)
+document.getElementById("pace-notice-tab").addEventListener("click", (e) => {
+  const tab = e.currentTarget;
+  const panel = document.getElementById("pace-notice-panel");
+
+  paceNoticePanelOpen = !paceNoticePanelOpen;
+  tab.classList.toggle("active", paceNoticePanelOpen);
+  panel.classList.toggle("hidden", !paceNoticePanelOpen);
+  if (paceNoticePanelOpen) renderPaceNoticePanel();
+});
+
+document.getElementById("pace-notice-panel").addEventListener("click", (e) => {
   const row = e.target.closest(".expiry-notice-item");
   if (!row) return;
   switchView("inventory");

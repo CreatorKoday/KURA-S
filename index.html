@@ -160,6 +160,17 @@
       </div>
       <div class="expiry-notice-panel hidden" id="expiry-notice-panel"></div>
 
+      <!-- ③.5 使い切り目安: 登録時点の賞味期限が長い商品(定量系90日以上/個数系180日以上)を対象に、
+           「経過日数から見て理想的にはあと何%残っているべきか」を表示する。めんつゆのような
+           減りにくい商品が、気づけば期限間際まで大量に残っている、という事態を早めに防ぐのが狙い。
+           見出しをタップして開閉するパネルは③と同じ仕組み -->
+      <p class="section-label" style="margin-top:20px;">使い切り目安</p>
+      <button type="button" class="pace-notice-tab" id="pace-notice-tab">
+        <span class="pace-notice-tab-count" id="pace-notice-count">0</span>
+        <span class="pace-notice-tab-label">件、減りが遅いかも</span>
+      </button>
+      <div class="expiry-notice-panel hidden" id="pace-notice-panel"></div>
+
       <!-- ④ 今後追加予定(レイアウト検討用のプレースホルダー) -->
       <p class="section-label" style="margin-top:28px;">今後追加予定</p>
       <div class="insight-grid">
