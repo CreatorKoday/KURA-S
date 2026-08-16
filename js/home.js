@@ -25,6 +25,13 @@ function watchSuccessMessage(elId, onSuccess) {
 
 watchSuccessMessage("manual-add-message", closeRegisterOverlay); // 手動登録の成功
 
+// 賞味期限のお知らせ・使い切り目安はページを開いた時点のロット一覧を集計するだけで
+// 自動更新されないため、登録(AI・手動)・消費が完了するたびに再集計する
+// (loadExpiryNoticesはこのファイルの下の方で定義しているが、function宣言は巻き上げられるため問題ない)
+watchSuccessMessage("manual-add-message", loadExpiryNotices);
+watchSuccessMessage("add-message", loadExpiryNotices);
+watchSuccessMessage("consume-message", loadExpiryNotices);
+
 // ---------- 挨拶・日付の表示 ----------
 
 function timeBasedGreeting() {
