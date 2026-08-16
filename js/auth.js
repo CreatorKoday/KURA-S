@@ -26,6 +26,7 @@ import { authCard, loggedInArea, messageBox, userNicknameLabel } from "./element
 import { showMessage, showAppNotice, escapeHtml } from "./utils.js";
 import { switchView } from "./navigation.js";
 import { loadShoppingList } from "./shopping.js";
+import { loadExpiryNotices } from "./home.js";
 
 function showEntryForm() {
   authCard.classList.remove("hidden");
@@ -45,6 +46,11 @@ function showLoggedIn(member) {
   userNicknameLabel.textContent = member.nickname;
   switchView("home");
   loadShoppingList();
+  // home.jsのloadExpiryNoticesはスクリプト読み込み時に1度だけ実行されるが、その時点では
+  // まだ入室(household_membersへの登録)が完了しておらずデータが取得できないため、
+  // 実際に入室が確定したこのタイミングで改めて実行し直す(新規入室直後に賞味期限の
+  // お知らせ・使い切り目安が空欄のままになる不具合の修正)
+  loadExpiryNotices();
 }
 
 export function renderAuthState(member) {

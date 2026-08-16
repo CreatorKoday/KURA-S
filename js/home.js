@@ -170,7 +170,7 @@ function renderExpiryNoticePanel(key) {
       `).join("");
 }
 
-async function loadExpiryNotices() {
+export async function loadExpiryNotices() {
   const { data, error } = await supabaseClient
     .from("item_lots")
     .select("id, quantity, expiry_date, purchase_date, items(name, unit)");
