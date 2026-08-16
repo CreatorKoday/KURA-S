@@ -49,8 +49,11 @@ consumeOverlayEl.addEventListener("click", (e) => {
 
 // ロット1件分の行。数量欄は「消費後にそのロットに残る数量」を表す
 // (初期値はそのロットの現在の数量=何もしなければ何も消費しない)。
-// 「1/4」「半分」「すべて」ボタンは、押すとそのロットの残り数量を該当する割合にする
-// (「すべて」=すべて消費する、なので残り0)
+// 「1/4」「半分」「すべて」ボタンは、押すとその時点で表示されている残り数量から
+// 該当する割合を消費した数量にする(例:「1/4」は今の残り数量の1/4を消費し、
+// 残りをその3/4にする)。押した後の値を基準に次のボタンが働くため、連続で押すと
+// 「半分の半分」のように複利的に効く(data-fractionは「消費する割合」、
+// 「すべて」は1=残り数量を100%消費して0にする)
 function consumeLotRowHtml(item, lot) {
   const { text: expiryText, statusClass } = formatExpiryLabel(lot.expiry_date);
   const step = isContinuousUnit(item.unit) ? 100 : 1;
@@ -71,7 +74,7 @@ function consumeLotRowHtml(item, lot) {
       <div class="consume-fraction-row">
         <button type="button" class="unit-chip" data-fraction="0.25">1/4</button>
         <button type="button" class="unit-chip" data-fraction="0.5">半分</button>
-        <button type="button" class="unit-chip" data-fraction="0">すべて</button>
+        <button type="button" class="unit-chip" data-fraction="1">すべて</button>
       </div>
     </div>
   `;
@@ -137,8 +140,9 @@ document.addEventListener("click", (e) => {
   const fractionBtn = e.target.closest("[data-fraction]");
   if (fractionBtn) {
     const numEl = fractionBtn.closest(".lot-row").querySelector('[data-action="edit-consume-lot-qty"]');
-    const originalQty = Number(numEl.dataset.originalQty);
-    updateConsumeLotQtyDisplay(numEl, Math.round(originalQty * Number(fractionBtn.dataset.fraction)));
+    const currentQty = Number(numEl.dataset.qty);
+    const consumedFraction = Number(fractionBtn.dataset.fraction);
+    updateConsumeLotQtyDisplay(numEl, Math.round(currentQty * (1 - consumedFraction)));
     return;
   }
 
