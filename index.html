@@ -485,24 +485,29 @@
     <button class="nav-btn" data-view="inventory"><span class="material-symbols-rounded">inventory_2</span><span>在庫</span></button>
     <button class="nav-btn" data-view="account"><span class="material-symbols-rounded">account_circle</span><span>アカウント</span></button>
   </div>
+
+  <!-- 登録・消費の中央円形メニュー。以前はposition:fixedでJavaScriptからナビバーの実際の
+       位置に追従させていたが、iOSのホーム画面追加アプリでのposition:fixedの計算のズレの
+       影響を受けてしまっていたため、.nav-bar(position:relative)の子要素にしてposition:
+       absoluteで配置する方式に変更した(2026-08-16〜)。これによりJSでの位置計算が不要になり、
+       ナビバーとの相対位置が常にCSSだけで正しく保たれる。PayPayの「支払う」ボタンのように、
+       ナビバー中央からはみ出して常時表示する小さいアイコンボタン(#nav-radial-btn、
+       タップしても消えない)と、タップするたびに開閉するトグル式の半円メニュー
+       (#nav-radial-expand)の2つに分かれている。半円の中は choose(登録/消費)→
+       method(AI/手動)と中身を差し替えながら選択を進め、最終的に既存のAI/手動それぞれの
+       動作を呼び出す -->
+  <div id="nav-radial-expand" class="nav-radial-expand hidden">
+    <div id="nav-radial-content" class="nav-radial-content"></div>
+  </div>
+  <div id="nav-radial-btn" class="nav-radial-btn" role="button" tabindex="0" aria-label="登録・消費">
+    <span class="nav-radial-idle-icon"><span class="material-symbols-rounded">swap_vert</span></span>
+  </div>
 </div>
 </div><!-- #app-shell -->
 
-<!-- 登録・消費の中央円形メニュー。position:fixedのままで問題ない(ナビバーの上に浮くだけで
-     画面下端近くまでは伸びないため)。実際の表示位置はナビバー(#app-shell内、もうfixedでは
-     ないため常に画面の本当の下端に届く)の実際のrectを基準にjs/navRadial.jsがJavaScriptで
-     揃える(2026-08-16〜)。PayPayの「支払う」ボタンのように、ナビバー中央から
-     はみ出して常時表示する小さいアイコンボタン(#nav-radial-btn、タップしても消えない)と、
-     タップするたびに開閉するトグル式の半円メニュー(#nav-radial-expand)の2つに分かれている。
-     半円の中は choose(登録/消費)→method(AI/手動)と中身を差し替えながら選択を進め、
-     最終的に既存のAI/手動それぞれの動作を呼び出す -->
+<!-- 円の外側(ナビバー上を含む)をタップすると半円メニューを閉じるための透明な全画面レイヤー。
+     画面全体を覆う必要があるためposition:fixedのまま#app-shellの外(body直下)に置く -->
 <div id="nav-radial-backdrop" class="hidden"></div>
-<div id="nav-radial-expand" class="nav-radial-expand hidden">
-  <div id="nav-radial-content" class="nav-radial-content"></div>
-</div>
-<div id="nav-radial-btn" class="nav-radial-btn hidden" role="button" tabindex="0" aria-label="登録・消費">
-  <span class="nav-radial-idle-icon"><span class="material-symbols-rounded">swap_vert</span></span>
-</div>
 
 <!-- 日付選択用の自作カレンダー -->
 <div id="calendar-overlay" class="hidden">

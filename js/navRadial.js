@@ -18,33 +18,13 @@ const btn = document.getElementById("nav-radial-btn");
 const expandEl = document.getElementById("nav-radial-expand");
 const content = document.getElementById("nav-radial-content");
 const backdrop = document.getElementById("nav-radial-backdrop");
-const navBarEl = document.querySelector(".nav-bar");
 
-// #nav-radial-btn/#nav-radial-expandはposition:fixedのまま(ナビバーの上に浮かせる必要が
-// あるため)だが、.nav-bar自体はもうposition:fixedではなく#app-shell内の通常のレイアウトで
-// 画面下部に配置される(index.html/common.cssのコメント参照)。そのため、この2つの位置は
-// .nav-barの実際の表示位置(getBoundingClientRect())を基準に、都度インラインスタイルで
-// 揃える(2026-08-16〜)。bottomではなくtopを使うのは、iOSのホーム画面追加アプリでは
-// position:fixed要素のbottomがwindow.innerHeightを基準に解釈される(実際の画面の高さより
-// 短くなる)ことがあり、bottom基準の計算だとこの2つも同じズレの影響を受けてナビバーより
-// 浮いて見えてしまうため。topは常にビューポートの本当の上端からの距離を表すため、この
-// ズレの影響を受けない
-export function alignNavRadial() {
-  if (!navBarEl) return;
-  const navBarTop = navBarEl.getBoundingClientRect().top;
-  const btnHeight = btn.getBoundingClientRect().height || 62;
-  const expandHeight = expandEl.getBoundingClientRect().height || 110;
-  btn.style.bottom = "auto";
-  btn.style.top = `${navBarTop - 12 - btnHeight}px`;
-  expandEl.style.bottom = "auto";
-  expandEl.style.top = `${navBarTop - expandHeight}px`;
-}
-alignNavRadial();
-window.addEventListener("resize", alignNavRadial);
-window.addEventListener("orientationchange", alignNavRadial);
-if (window.visualViewport) {
-  window.visualViewport.addEventListener("resize", alignNavRadial);
-}
+// #nav-radial-btn/#nav-radial-expandは.nav-bar(position:relative)の子要素とし、
+// position:absolute; bottom:100%でナビバーの上端を基準に配置する(navRadial.css)。
+// 以前はposition:fixedのままJavaScriptでナビバーの実際の位置に追従させていたが、
+// position:fixed自体がiOSのホーム画面追加アプリで実際の画面の高さより短く解釈される
+// ことがあり、追従計算をしてもズレの影響を受けてしまっていたため、位置計算が一切不要な
+// この方式に変更した(2026-08-16〜)
 
 let open = false;
 let state = "choose"; // "choose" | "method"(openがtrueの間のみ意味を持つ)
