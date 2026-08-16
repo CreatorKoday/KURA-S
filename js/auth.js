@@ -27,10 +27,13 @@ import { showMessage, showAppNotice, escapeHtml } from "./utils.js";
 import { switchView } from "./navigation.js";
 import { loadShoppingList } from "./shopping.js";
 import { loadExpiryNotices } from "./home.js";
+import { alignNavRadial } from "./navRadial.js";
 
 function showEntryForm() {
   authCard.classList.remove("hidden");
   loggedInArea.classList.add("hidden");
+  document.querySelector(".nav-bar").classList.add("hidden");
+  document.getElementById("nav-radial-btn").classList.add("hidden");
   document.getElementById("auth-join-form").classList.remove("hidden");
   document.getElementById("auth-create-form").classList.add("hidden");
   document.getElementById("auth-forgot-key-form").classList.add("hidden");
@@ -43,6 +46,11 @@ function showEntryForm() {
 function showLoggedIn(member) {
   authCard.classList.add("hidden");
   loggedInArea.classList.remove("hidden");
+  document.querySelector(".nav-bar").classList.remove("hidden");
+  document.getElementById("nav-radial-btn").classList.remove("hidden");
+  // ログイン前はナビバーがdisplay:noneのため、alignNavRadial()の位置計算(getBoundingClientRect)が
+  // 正しく行えていない。表示状態になった直後に再計算する(2026-08-16〜)
+  alignNavRadial();
   userNicknameLabel.textContent = member.nickname;
   switchView("home");
   loadShoppingList();
@@ -75,6 +83,8 @@ async function fetchCurrentMembership() {
 // 部屋の作成/入室フォームを操作できてしまうと、ユーザーが紐付かないまま
 // household_membersへのinsertが失敗し分かりにくいエラーになる。フォーム自体を隠して防ぐ
 function showBlockedState() {
+  document.querySelector(".nav-bar").classList.add("hidden");
+  document.getElementById("nav-radial-btn").classList.add("hidden");
   document.getElementById("auth-create-form").classList.add("hidden");
   document.getElementById("auth-join-form").classList.add("hidden");
   document.getElementById("auth-forgot-key-form").classList.add("hidden");

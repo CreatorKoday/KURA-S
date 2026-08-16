@@ -15,6 +15,11 @@
   padding-right: 22px;
 }
 
+/* .nav-barは独自にdisplay:flexを指定しているため、common.cssの.hidden(display:none)より
+   後に読み込まれるこちらが勝ってしまう。ログイン前は隠す必要があるため明示的に上書きする
+   (2026-08-16〜、#nav-radial-expand.hiddenと同じパターン) */
+.nav-bar.hidden { display: none; }
+
 .nav-bar-side { display: flex; gap: 4px; }
 
 .nav-bar .nav-btn { flex: 0 0 auto; width: 62px; height: 44px; }
@@ -50,6 +55,8 @@
   z-index: 960;
   cursor: pointer;
 }
+
+.nav-radial-btn.hidden { display: none; }
 
 .nav-radial-idle-icon { display: flex; color: #fff; }
 

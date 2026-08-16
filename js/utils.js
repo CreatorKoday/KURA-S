@@ -11,11 +11,18 @@
 // ズレとして妥当な範囲内の)場合のみscreen.heightを採用し、それ以外はinnerHeightをそのまま使う
 function setupAppHeightVar() {
   const apply = () => {
-    const root = document.documentElement;
     const innerH = window.innerHeight;
     const screenH = window.screen.height;
     const trueHeight = (screenH > innerH && screenH - innerH < 120) ? screenH : innerH;
-    root.style.setProperty("--true-app-height", `${trueHeight}px`);
+    const px = `${trueHeight}px`;
+    // CSSのvar()/height:100%の計算だけに頼ると、bodyのoverflow:hiddenがこの高さの
+    // ずれを吸収しきれず#app-shellの下側がクリップされることがあったため、html・body・
+    // #app-shellの3か所すべてにインラインスタイルで直接高さを指定する(2026-08-16〜)
+    document.documentElement.style.setProperty("--true-app-height", px);
+    document.documentElement.style.height = px;
+    document.body.style.height = px;
+    const shell = document.getElementById("app-shell");
+    if (shell) shell.style.height = px;
   };
   apply();
   window.addEventListener("resize", apply);

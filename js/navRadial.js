@@ -25,7 +25,7 @@ const navBarEl = document.querySelector(".nav-bar");
 // 画面下部に配置される(index.html/common.cssのコメント参照)。そのため、この2つの位置は
 // .nav-barの実際の表示位置(getBoundingClientRect())を基準に、都度インラインスタイルで
 // 揃える(2026-08-16〜)
-function alignNavRadial() {
+export function alignNavRadial() {
   if (!navBarEl) return;
   const offsetFromBottom = window.innerHeight - navBarEl.getBoundingClientRect().top;
   btn.style.bottom = `${offsetFromBottom + 12}px`;
