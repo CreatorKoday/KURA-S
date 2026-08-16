@@ -9,7 +9,11 @@
 .nav-bar {
   justify-content: space-between;
   padding-top: 8px;
-  padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  /* ホーム画面に追加したアプリ(スタンドアロン)では、position:fixed;bottom:0要素の
+     位置自体がOS側で既にホームインジケーター分の安全領域を避けて計算されるため、
+     ここでenv(safe-area-inset-bottom)を重ねて加算すると安全領域が二重になり、
+     バーが本来より高い位置に浮いてしまう(2026-08-16、この重複を解消) */
+  padding-bottom: 8px;
   /* 左右の余白を広げ、両サイドのボタン群を中央の丸ボタン側へ少し寄せる */
   padding-left: 22px;
   padding-right: 22px;
@@ -33,13 +37,12 @@
 #nav-radial-backdrop.hidden { display: none; }
 
 /* 常時表示する小さいアイコンボタン。展開中も消えず、再度タップすると半円メニューを閉じる。
-   bottomにenv(safe-area-inset-bottom)を加算しているのは、ホーム画面に追加してアプリ化した
-   状態(viewport-fit=coverが効き、ホームインジケーター分のセーフエリアがナビバーの下側
-   パディング(common.cssの.nav-bar)に丸ごと乗ってバーが高くなる)でも、ナビバーの実際の
-   高さの変化に追従してボタンの位置がズレない(上端がバーからはみ出さなくなる)ようにするため */
+   bottomの値は.nav-bar(navRadial.css)の高さ(パディング込み)を基準に、その「ホーム」
+   ラベルの下端と揃う高さに合わせている(env(safe-area-inset-bottom)は.nav-bar側で
+   重複するため加算しない。2026-08-16〜) */
 .nav-radial-btn {
   position: fixed;
-  left: 50%; bottom: calc(12px + env(safe-area-inset-bottom));
+  left: 50%; bottom: 12px;
   transform: translateX(-50%);
   width: 62px; height: 62px;
   border-radius: 50%;
@@ -57,11 +60,11 @@
 /* 展開時に現れる半円メニュー。ナビバーが半透明で背後が透けて見えてしまうのを避けるため、
    下端(平らな辺)をナビバーの上端に揃え、バーの領域には一切重ならない半円だけを表示する
    (幅=直径220px・高さ=半径110pxにし、clip-pathで上2つの角だけ半径110pxに丸めて半円にする)。
-   bottomにenv(safe-area-inset-bottom)を加算する理由は.nav-radial-btnと同じ(ナビバーの
-   実際の高さに追従させ、ホーム画面追加時にナビバーへ食い込まないようにするため) */
+   bottomの考え方は.nav-radial-btnと同じ(env(safe-area-inset-bottom)は.nav-bar側で
+   重複するため加算しない。2026-08-16〜) */
 .nav-radial-expand {
   position: fixed;
-  left: 50%; bottom: calc(61px + env(safe-area-inset-bottom));
+  left: 50%; bottom: 61px;
   transform: translateX(-50%);
   transform-origin: center bottom;
   width: 220px; height: 110px;
