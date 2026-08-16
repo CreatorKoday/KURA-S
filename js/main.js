@@ -45,6 +45,12 @@ if (window.lucide) lucide.createIcons();
   probe.style.cssText = "position:fixed;bottom:0;left:0;width:1px;padding-bottom:env(safe-area-inset-bottom);visibility:hidden;";
   document.body.appendChild(probe);
 
+  // スクリーンショットは常に画面の物理的な全体を写すため、position:fixed;bottom:0(加工なし)の
+  // 位置を赤い線で可視化し、画面の本当の下端とのズレをスクリーンショット上で直接測れるようにする
+  const marker = document.createElement("div");
+  marker.style.cssText = "position:fixed;bottom:0;left:0;right:0;height:6px;background:red;z-index:99998;pointer-events:none;";
+  document.body.appendChild(marker);
+
   function update() {
     const navBar = document.querySelector(".nav-bar");
     const rect = navBar ? navBar.getBoundingClientRect() : null;
