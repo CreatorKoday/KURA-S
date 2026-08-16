@@ -461,36 +461,41 @@
       <div id="account-message"></div>
     </div>
 
-    <div class="nav-bar">
-      <div class="nav-bar-side">
-        <button class="nav-btn" data-view="home"><span class="material-symbols-rounded">home</span><span>ホーム</span></button>
-        <button class="nav-btn" data-view="shopping"><span class="material-symbols-rounded">shopping_cart</span><span>買い物</span></button>
-      </div>
-      <div class="nav-bar-side">
-        <button class="nav-btn" data-view="inventory"><span class="material-symbols-rounded">inventory_2</span><span>在庫</span></button>
-        <button class="nav-btn" data-view="account"><span class="material-symbols-rounded">account_circle</span><span>アカウント</span></button>
-      </div>
-    </div>
-
-    <!-- 登録・消費の中央円形メニュー。PayPayの「支払う」ボタンのように、ナビバー中央から
-         はみ出して常時表示する小さいアイコンボタン(#nav-radial-btn、タップしても消えない)と、
-         タップするたびに開閉するトグル式の半円メニュー(#nav-radial-expand)の2つに分かれている。
-         半円の中は choose(登録/消費)→method(AI/手動)と中身を差し替えながら選択を進め、
-         最終的に既存のAI/手動それぞれの動作を呼び出す -->
-    <div id="nav-radial-backdrop" class="hidden"></div>
-    <div id="nav-radial-expand" class="nav-radial-expand hidden">
-      <div id="nav-radial-content" class="nav-radial-content"></div>
-    </div>
-    <div id="nav-radial-btn" class="nav-radial-btn" role="button" tabindex="0" aria-label="登録・消費">
-      <span class="nav-radial-idle-icon"><span class="material-symbols-rounded">swap_vert</span></span>
-    </div>
-
     <input type="file" accept="image/*" capture="environment" id="photo-input" class="hidden">
     <button type="button" id="photo-btn" class="hidden">写真を撮影する</button>
     <input type="file" accept="image/*" capture="environment" id="consume-photo-input" class="hidden">
     <button type="button" id="consume-photo-btn" class="hidden">写真を撮影する</button>
 
   </div>
+</div>
+
+<!-- 下部ナビバー・中央の登録/消費円形メニューは.wrapの外側・body直下に置く。
+     .wrap内(overflow-y:autoかつheight:100dvh)に置くと、iOS Safariのposition:fixed要素が
+     ビューポートではなくスクロール親要素基準で配置されてしまう既知の不具合と、ホーム画面に
+     追加したアプリでの100dvh計算のずれが重なり、画面最下部より上に浮いて表示されてしまうため
+     (2026-08-16、他のオーバーレイ類と同じく.wrapの外に出す形に統一) -->
+<div class="nav-bar">
+  <div class="nav-bar-side">
+    <button class="nav-btn" data-view="home"><span class="material-symbols-rounded">home</span><span>ホーム</span></button>
+    <button class="nav-btn" data-view="shopping"><span class="material-symbols-rounded">shopping_cart</span><span>買い物</span></button>
+  </div>
+  <div class="nav-bar-side">
+    <button class="nav-btn" data-view="inventory"><span class="material-symbols-rounded">inventory_2</span><span>在庫</span></button>
+    <button class="nav-btn" data-view="account"><span class="material-symbols-rounded">account_circle</span><span>アカウント</span></button>
+  </div>
+</div>
+
+<!-- 登録・消費の中央円形メニュー。PayPayの「支払う」ボタンのように、ナビバー中央から
+     はみ出して常時表示する小さいアイコンボタン(#nav-radial-btn、タップしても消えない)と、
+     タップするたびに開閉するトグル式の半円メニュー(#nav-radial-expand)の2つに分かれている。
+     半円の中は choose(登録/消費)→method(AI/手動)と中身を差し替えながら選択を進め、
+     最終的に既存のAI/手動それぞれの動作を呼び出す -->
+<div id="nav-radial-backdrop" class="hidden"></div>
+<div id="nav-radial-expand" class="nav-radial-expand hidden">
+  <div id="nav-radial-content" class="nav-radial-content"></div>
+</div>
+<div id="nav-radial-btn" class="nav-radial-btn" role="button" tabindex="0" aria-label="登録・消費">
+  <span class="nav-radial-idle-icon"><span class="material-symbols-rounded">swap_vert</span></span>
 </div>
 
 <!-- 日付選択用の自作カレンダー -->
