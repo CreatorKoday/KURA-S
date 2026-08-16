@@ -18,6 +18,25 @@ const btn = document.getElementById("nav-radial-btn");
 const expandEl = document.getElementById("nav-radial-expand");
 const content = document.getElementById("nav-radial-content");
 const backdrop = document.getElementById("nav-radial-backdrop");
+const navBarEl = document.querySelector(".nav-bar");
+
+// #nav-radial-btn/#nav-radial-expandはposition:fixedのまま(ナビバーの上に浮かせる必要が
+// あるため)だが、.nav-bar自体はもうposition:fixedではなく#app-shell内の通常のレイアウトで
+// 画面下部に配置される(index.html/common.cssのコメント参照)。そのため、この2つの位置は
+// .nav-barの実際の表示位置(getBoundingClientRect())を基準に、都度インラインスタイルで
+// 揃える(2026-08-16〜)
+function alignNavRadial() {
+  if (!navBarEl) return;
+  const offsetFromBottom = window.innerHeight - navBarEl.getBoundingClientRect().top;
+  btn.style.bottom = `${offsetFromBottom + 12}px`;
+  expandEl.style.bottom = `${offsetFromBottom}px`;
+}
+alignNavRadial();
+window.addEventListener("resize", alignNavRadial);
+window.addEventListener("orientationchange", alignNavRadial);
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", alignNavRadial);
+}
 
 let open = false;
 let state = "choose"; // "choose" | "method"(openがtrueの間のみ意味を持つ)

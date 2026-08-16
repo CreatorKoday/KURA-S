@@ -39,6 +39,13 @@
 </head>
 <body>
 
+<!-- #app-shellはbody直下でflex-directionをcolumnにし、.wrap(スクロール領域)とナビバーを
+     縦に並べる。ナビバーをposition:fixedにすると、ホーム画面に追加したアプリでは
+     window.innerHeightを超えて画面下端付近まで描画しようとした際に、超えた部分が
+     描画されずに欠けてしまう既知の制約があるため、position:fixedに頼らず通常のレイアウトで
+     画面下部に配置する形に変更した(2026-08-16〜)。高さはjs/utils.jsのsetupAppHeightVar()が
+     screen.heightを元に算出する--true-app-heightを使う -->
+<div id="app-shell">
 <div class="wrap">
 
   <div id="auth-card" class="card auth-card">
@@ -469,11 +476,6 @@
   </div>
 </div>
 
-<!-- 下部ナビバー・中央の登録/消費円形メニューは.wrapの外側・body直下に置く。
-     .wrap内(overflow-y:autoかつheight:100dvh)に置くと、iOS Safariのposition:fixed要素が
-     ビューポートではなくスクロール親要素基準で配置されてしまう既知の不具合と、ホーム画面に
-     追加したアプリでの100dvh計算のずれが重なり、画面最下部より上に浮いて表示されてしまうため
-     (2026-08-16、他のオーバーレイ類と同じく.wrapの外に出す形に統一) -->
 <div class="nav-bar">
   <div class="nav-bar-side">
     <button class="nav-btn" data-view="home"><span class="material-symbols-rounded">home</span><span>ホーム</span></button>
@@ -484,8 +486,12 @@
     <button class="nav-btn" data-view="account"><span class="material-symbols-rounded">account_circle</span><span>アカウント</span></button>
   </div>
 </div>
+</div><!-- #app-shell -->
 
-<!-- 登録・消費の中央円形メニュー。PayPayの「支払う」ボタンのように、ナビバー中央から
+<!-- 登録・消費の中央円形メニュー。position:fixedのままで問題ない(ナビバーの上に浮くだけで
+     画面下端近くまでは伸びないため)。実際の表示位置はナビバー(#app-shell内、もうfixedでは
+     ないため常に画面の本当の下端に届く)の実際のrectを基準にjs/navRadial.jsがJavaScriptで
+     揃える(2026-08-16〜)。PayPayの「支払う」ボタンのように、ナビバー中央から
      はみ出して常時表示する小さいアイコンボタン(#nav-radial-btn、タップしても消えない)と、
      タップするたびに開閉するトグル式の半円メニュー(#nav-radial-expand)の2つに分かれている。
      半円の中は choose(登録/消費)→method(AI/手動)と中身を差し替えながら選択を進め、

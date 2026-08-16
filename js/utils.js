@@ -2,21 +2,20 @@
 // 共通ユーティリティ(メッセージ表示・HTMLエスケープ・数量プルダウン生成)
 // ==========================================================
 
-// ホーム画面に追加したアプリ(スタンドアロン)では、CSSの100%/100dvhが実際の画面の高さより
-// 低く計算されることがあり、.wrap等がその分低くなって下部に余白ができてしまう。
-// window.innerHeightを都度CSS変数--app-heightへ反映し、common.cssの.wrap/html,bodyが
-// これを優先して使うことで、実際の画面の高さに合わせる(2026-08-16〜)。
-// あわせて、position:fixed;bottom:0要素(下部ナビ等)もwindow.innerHeight基準に配置され、
-// 実機での実測(screen.height - innerHeight = 47px)の通り実際の画面より短くなることが
-// あるため、その差分を--fixed-bottom-offsetへ反映し、該当要素のbottomから差し引く形で
-// 画面の本当の下端に届くよう補正する(env(safe-area-inset-bottom)とは別の、iOS標準アプリ化
-// 時のビューポート計算のズレへの対応)
+// ホーム画面に追加したアプリ(スタンドアロン)では、window.innerHeightが実際の画面の高さ
+// (window.screen.height)より短くなることがある(実機での実測で47pxのズレを確認)。
+// #app-shell(index.html/common.css)はposition:fixedを使わずナビバーを配置する構造にしたため、
+// --true-app-heightを画面の本当の高さに正しく合わせておく必要がある。
+// ただし通常のPCブラウザ等ではscreen.height(モニターの解像度)とinnerHeight(ウィンドウの
+// 表示領域)が大きく異なるのが普通のため、両者の差が小さい(ノッチ・ホームインジケーター分の
+// ズレとして妥当な範囲内の)場合のみscreen.heightを採用し、それ以外はinnerHeightをそのまま使う
 function setupAppHeightVar() {
   const apply = () => {
     const root = document.documentElement;
-    root.style.setProperty("--app-height", `${window.innerHeight}px`);
-    const bottomGap = Math.max(0, window.screen.height - window.innerHeight);
-    root.style.setProperty("--fixed-bottom-offset", `${bottomGap}px`);
+    const innerH = window.innerHeight;
+    const screenH = window.screen.height;
+    const trueHeight = (screenH > innerH && screenH - innerH < 120) ? screenH : innerH;
+    root.style.setProperty("--true-app-height", `${trueHeight}px`);
   };
   apply();
   window.addEventListener("resize", apply);
