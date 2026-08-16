@@ -43,15 +43,16 @@
 #nav-radial-backdrop.hidden { display: none; }
 
 /* 常時表示する小さいアイコンボタン。展開中も消えず、再度タップすると半円メニューを閉じる。
-   .nav-bar(position:relative)の子要素とし、position:absolute; bottom:100%でナビバーの
-   上端にぴったり揃え、transformで12px分上に離す。position:fixedではなくなったため、
-   iOSのホーム画面追加アプリ特有のbottom計算のズレの影響を受けない(2026-08-16〜。
-   以前はposition:fixedのままJavaScriptで位置を追従させていたが、position:fixed自体が
-   ズレの影響を受けてしまっていたため、この方式に変更した) */
+   .nav-bar(position:relative)の子要素とし、position:absoluteで配置する。position:fixedでは
+   なくなったため、iOSのホーム画面追加アプリ特有のbottom計算のズレの影響を受けない
+   (2026-08-16〜。以前はposition:fixedのままJavaScriptで位置を追従させていたが、
+   position:fixed自体がズレの影響を受けてしまっていたため、この方式に変更した)。
+   PayPayの「支払う」ボタンのように、上部がほんの少しはみ出る程度(上端がナビバーの
+   上端から16px上)になるようtopをマイナス値にする(ボタン自体はナビバーに一部重なる形になる) */
 .nav-radial-btn {
   position: absolute;
-  left: 50%; bottom: 100%;
-  transform: translate(-50%, -12px);
+  left: 50%; top: -16px;
+  transform: translateX(-50%);
   width: 62px; height: 62px;
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
