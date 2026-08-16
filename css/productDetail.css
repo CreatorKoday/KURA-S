@@ -62,6 +62,38 @@
   font-size: 17px; font-weight: 700; color: var(--text);
 }
 
+.product-detail-name-row { display: flex; align-items: center; gap: 6px; }
+
+.product-detail-name-edit-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; flex-shrink: 0;
+  background: none; color: var(--text-tertiary);
+  border-radius: 50%;
+}
+
+.product-detail-name-edit-btn:hover { color: var(--primary); background: var(--primary-soft); }
+
+.product-detail-name-edit-btn .material-symbols-rounded { font-size: 16px; }
+
+.product-detail-name-edit-form {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 2px;
+}
+
+.product-detail-name-edit-form.hidden { display: none; }
+
+.product-detail-name-edit-form input {
+  flex: 1; min-width: 0;
+  height: 36px; font-size: 14px;
+}
+
+.product-detail-name-edit-form button {
+  width: auto; flex-shrink: 0;
+  margin-top: 0;
+  padding: 0 12px; height: 36px;
+  font-size: 13px;
+}
+
 .product-detail-canonical {
   margin: 4px 0 0;
   font-size: 12px; color: var(--text-tertiary);
@@ -179,9 +211,13 @@
 .product-detail-lot-expiry,
 .product-detail-lot-purchase { font-size: 12px; color: var(--text-tertiary); }
 
+.product-detail-lot-fix-group {
+  display: flex; align-items: center; gap: 6px;
+  margin-left: auto;
+}
+
 .product-detail-lot-fix-btn {
   display: flex; align-items: center; gap: 3px;
-  margin-left: auto;
   font-size: 12px; font-weight: 600; color: var(--primary);
   background: var(--primary-soft);
   border-radius: var(--radius-pill);

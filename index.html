@@ -618,11 +618,25 @@
       <div class="product-detail-basic">
         <span class="product-detail-icon" id="pd-icon">📦</span>
         <div class="product-detail-basic-text">
-          <p class="product-detail-name" id="pd-item-name"></p>
+          <div class="product-detail-name-row" id="pd-item-name-row">
+            <p class="product-detail-name" id="pd-item-name"></p>
+            <button type="button" class="product-detail-name-edit-btn" id="pd-item-name-edit-btn" aria-label="商品名を修正">
+              <span class="material-symbols-rounded">edit</span>
+            </button>
+          </div>
+          <div class="product-detail-name-edit-form hidden" id="pd-item-name-edit-form">
+            <input type="text" id="pd-item-name-input" maxlength="60">
+            <button type="button" class="btn-primary" id="pd-item-name-save-btn">保存</button>
+            <button type="button" class="btn-secondary" id="pd-item-name-cancel-btn">キャンセル</button>
+          </div>
           <p class="product-detail-canonical" id="pd-canonical-name" data-action="toggle-canonical-reading"></p>
           <p class="product-detail-canonical-reading hidden" id="pd-canonical-reading"></p>
         </div>
       </div>
+
+      <!-- 賞味期限修正用の非表示プロキシ入力欄。js/calendar.jsは`.date-display`要素の
+           クリックでカレンダーを開く仕組みのため、これをクリックして呼び出す(js/productDetail.js) -->
+      <input type="text" id="pd-lot-expiry-edit-proxy" class="date-display hidden" readonly>
 
       <div class="product-detail-section">
         <div class="product-detail-section-header">

@@ -62,9 +62,10 @@ function renderView() {
   const icon = currentIcon || getCategoryIcon(currentMaster.type, currentMaster.category);
   document.getElementById("pd-icon").textContent = icon;
   document.getElementById("pd-icon-value").textContent = icon;
-  // masterモードは特定の商品名を持たないため、商品名の見出しは表示せず標準商品名(下の行)だけにする
+  // masterモードは特定の商品名を持たないため、商品名の見出し(修正ボタン含む)は表示せず標準商品名(下の行)だけにする
   document.getElementById("pd-item-name").textContent = currentMode === "master" ? "" : currentItem.name;
-  document.getElementById("pd-item-name").classList.toggle("hidden", currentMode === "master");
+  document.getElementById("pd-item-name-row").classList.toggle("hidden", currentMode === "master");
+  document.getElementById("pd-item-name-edit-form").classList.add("hidden");
   document.getElementById("pd-canonical-name").textContent = "標準商品名: " + currentMaster.canonical_name;
   document.getElementById("pd-canonical-reading").textContent = currentMaster.canonical_name_reading || "読み方未登録";
   hide("pd-canonical-reading"); // 商品を切り替えるたびに閉じた状態に戻す
@@ -281,8 +282,9 @@ document.addEventListener("click", (e) => {
 });
 
 // ---------- 在庫ロット(購入日) ----------
-// item/fallbackモードで、対象商品名(itemId)のロット一覧を購入日つきで表示する(読み取り専用。
-// 数量・賞味期限の増減は在庫確認画面から行うため、ここでは操作ボタンは置かない)
+// item/fallbackモードで、対象商品名(itemId)のロット一覧を購入日つきで表示する。
+// 数量・賞味期限の増減は在庫確認画面から行うため、ここでは登録時の入力ミスを直すための
+// 「修正」ボタン(数量・賞味期限)のみを置く(購入日そのものは修正対象にしない)
 
 function formatPurchaseDateLabel(purchaseDate) {
   if (!purchaseDate) return "購入日不明";
@@ -296,11 +298,17 @@ function productDetailLotRowHtml(lot, unit, itemId) {
       <span class="product-detail-lot-qty">${lot.quantity}${escapeHtml(unit)}</span>
       <span class="product-detail-lot-expiry">${escapeHtml(expiryText)}</span>
       <span class="product-detail-lot-purchase">${escapeHtml(formatPurchaseDateLabel(lot.purchase_date))}</span>
-      <button type="button" class="product-detail-lot-fix-btn" data-action="fix-lot-qty"
-        data-lot-id="${lot.id}" data-item-id="${itemId}" data-qty="${lot.quantity}"
-        data-unit="${escapeHtml(unit)}" data-purchase-date="${escapeHtml(lot.purchase_date || "")}">
-        <span class="material-symbols-rounded">edit</span>修正
-      </button>
+      <div class="product-detail-lot-fix-group">
+        <button type="button" class="product-detail-lot-fix-btn" data-action="fix-lot-qty"
+          data-lot-id="${lot.id}" data-item-id="${itemId}" data-qty="${lot.quantity}"
+          data-unit="${escapeHtml(unit)}" data-purchase-date="${escapeHtml(lot.purchase_date || "")}">
+          <span class="material-symbols-rounded">edit</span>数量
+        </button>
+        <button type="button" class="product-detail-lot-fix-btn" data-action="fix-lot-expiry"
+          data-lot-id="${lot.id}" data-item-id="${itemId}" data-expiry="${escapeHtml(lot.expiry_date || "")}">
+          <span class="material-symbols-rounded">event</span>期限
+        </button>
+      </div>
     </div>
   `;
 }
@@ -361,6 +369,87 @@ document.getElementById("pd-lots-list").addEventListener("click", (e) => {
       await loadAndRenderLots(fixBtn.dataset.itemId);
     }
   });
+});
+
+// 「期限」ボタン: 賞味期限の入力ミスをその場で直す。item_historyには賞味期限を記録して
+// いないため、数量の修正と違って履歴側の照合は不要で、ロットの日付を直接書き換えるだけでよい。
+// 修正後の日付が同じ商品の別ロットの期限とたまたま一致しても、自動では合算しない
+// (登録時のミス修正という限定用途のため、頻度の低いこのケースまでは対応しない)。
+// カレンダー(js/calendar.js)は「.date-display」クラスの要素をクリックすると自動的に開く
+// 仕組みのため、非表示のプロキシ入力欄(#pd-lot-expiry-edit-proxy)をクリックして呼び出す
+let pendingExpiryEditLotId = null;
+let pendingExpiryEditItemId = null;
+
+document.getElementById("pd-lots-list").addEventListener("click", (e) => {
+  const fixExpiryBtn = e.target.closest('[data-action="fix-lot-expiry"]');
+  if (!fixExpiryBtn) return;
+
+  pendingExpiryEditLotId = fixExpiryBtn.dataset.lotId;
+  pendingExpiryEditItemId = fixExpiryBtn.dataset.itemId;
+  const proxy = document.getElementById("pd-lot-expiry-edit-proxy");
+  proxy.value = fixExpiryBtn.dataset.expiry || "";
+  proxy.click();
+});
+
+document.getElementById("pd-lot-expiry-edit-proxy").addEventListener("change", async (e) => {
+  const lotId = pendingExpiryEditLotId;
+  const itemId = pendingExpiryEditItemId;
+  pendingExpiryEditLotId = null;
+  pendingExpiryEditItemId = null;
+  if (!lotId) return;
+
+  const { error } = await supabaseClient.from("item_lots").update({ expiry_date: e.target.value || null }).eq("id", lotId);
+  if (error) {
+    console.error("賞味期限の修正に失敗:", error);
+    showAppNotice("賞味期限の修正に失敗しました");
+    return;
+  }
+
+  showAppNotice("賞味期限を修正しました");
+  await loadAndRenderLots(itemId);
+  loadItems();
+});
+
+// ---------- 商品名の修正 ----------
+// あくまで登録時の誤字修正を想定した簡易な機能。商品名(items.name)は新規登録のたびに
+// 完全一致で既存商品を検索するキーとして使われているため、修正後は「他のメンバーが
+// 修正前の名前で登録すると別商品として重複してしまう」「過去の購入・消費履歴の商品名は
+// 記録時点のスナップショットのため古い名前のまま残る」といった影響がありうるが、
+// 誤字修正程度の用途であれば許容する
+document.getElementById("pd-item-name-edit-btn").addEventListener("click", () => {
+  if (!currentItem) return;
+  document.getElementById("pd-item-name-input").value = currentItem.name;
+  document.getElementById("pd-item-name-row").classList.add("hidden");
+  document.getElementById("pd-item-name-edit-form").classList.remove("hidden");
+});
+
+function closeItemNameEdit() {
+  document.getElementById("pd-item-name-edit-form").classList.add("hidden");
+  document.getElementById("pd-item-name-row").classList.remove("hidden");
+}
+document.getElementById("pd-item-name-cancel-btn").addEventListener("click", closeItemNameEdit);
+
+document.getElementById("pd-item-name-save-btn").addEventListener("click", async () => {
+  const newName = document.getElementById("pd-item-name-input").value.trim();
+  if (!currentItem || !newName) return;
+
+  if (newName === currentItem.name) {
+    closeItemNameEdit();
+    return;
+  }
+
+  const { error } = await supabaseClient.from("items").update({ name: newName }).eq("id", currentItem.id);
+  if (error) {
+    console.error("商品名の修正に失敗:", error);
+    showAppNotice("商品名の修正に失敗しました");
+    return;
+  }
+
+  currentItem.name = newName;
+  document.getElementById("pd-item-name").textContent = newName;
+  closeItemNameEdit();
+  showAppNotice("商品名を修正しました");
+  loadItems();
 });
 
 // ---------- 在庫設定(最低数量) ----------
