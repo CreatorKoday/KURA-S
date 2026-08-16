@@ -7,7 +7,12 @@
    あわせて、ラベル下の余白が広くなりすぎないようバー自体の上下パディングを詰め、
    中央の丸ボタンと「買い物」アイコンの間隔を確保するためボタン幅・アイコンも一回り小さくする */
 .nav-bar {
-  /* bottomの値は調査中(2026-08-16〜)。診断表示で実際の余白を計測してから確定させる */
+  /* ホーム画面に追加したアプリでは、position:fixed;bottom:0要素がwindow.innerHeight基準で
+     配置され、実際の画面(screen.height)より短くなることが実機での計測(47px)で判明した。
+     js/utils.jsのsetupAppHeightVar()が算出する--fixed-bottom-offsetをbottomから差し引き、
+     バーの背景が画面の本当の下端まで届くようにする(env(safe-area-inset-bottom)とは別の
+     ズレのため、padding-bottom側の安全領域確保とは独立して補正する。2026-08-16〜) */
+  bottom: calc(-1 * var(--fixed-bottom-offset, 0px));
   justify-content: space-between;
   padding-top: 8px;
   padding-bottom: calc(8px + env(safe-area-inset-bottom));
@@ -35,11 +40,12 @@
 
 /* 常時表示する小さいアイコンボタン。展開中も消えず、再度タップすると半円メニューを閉じる。
    bottomの値は.nav-bar(navRadial.css)の高さ(パディング込み)を基準に、その「ホーム」
-   ラベルの下端と揃う高さに合わせている(env(safe-area-inset-bottom)は.nav-bar側で
-   重複するため加算しない。2026-08-16〜) */
+   ラベルの下端と揃う高さに合わせている。--fixed-bottom-offsetは.nav-barと同じ理由で
+   差し引く(これが無いと.nav-barだけ画面下端まで届き、この丸ボタンだけ相対的に高い
+   位置に取り残されてズレて見えてしまう。2026-08-16〜) */
 .nav-radial-btn {
   position: fixed;
-  left: 50%; bottom: 12px;
+  left: 50%; bottom: calc(12px - var(--fixed-bottom-offset, 0px));
   transform: translateX(-50%);
   width: 62px; height: 62px;
   border-radius: 50%;
@@ -57,11 +63,10 @@
 /* 展開時に現れる半円メニュー。ナビバーが半透明で背後が透けて見えてしまうのを避けるため、
    下端(平らな辺)をナビバーの上端に揃え、バーの領域には一切重ならない半円だけを表示する
    (幅=直径220px・高さ=半径110pxにし、clip-pathで上2つの角だけ半径110pxに丸めて半円にする)。
-   bottomの考え方は.nav-radial-btnと同じ(env(safe-area-inset-bottom)は.nav-bar側で
-   重複するため加算しない。2026-08-16〜) */
+   bottomの考え方は.nav-radial-btnと同じ(--fixed-bottom-offsetを差し引く。2026-08-16〜) */
 .nav-radial-expand {
   position: fixed;
-  left: 50%; bottom: 61px;
+  left: 50%; bottom: calc(61px - var(--fixed-bottom-offset, 0px));
   transform: translateX(-50%);
   transform-origin: center bottom;
   width: 220px; height: 110px;
