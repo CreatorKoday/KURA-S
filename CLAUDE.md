@@ -192,6 +192,7 @@ sql/
 ```
 kateikanri-app-Public/
 ├── index.html          唯一のHTML(SPA)。全ビュー・全モーダルがここに存在
+├── icons/                 アプリアイコン(`icon-180.png`=iOSホーム画面用、`icon-192.png`/`icon-512.png`=PWA向け。`index.html`の`<link rel="apple-touch-icon">`/`<link rel="icon">`から参照。2026-08-16〜)
 ├── css/
 │   ├── common.css        デザインシステム基盤(CSS変数・共通カード/ボタン/フォーム/ヘッダー/下部ナビ)
 │   ├── animation.css     共通アニメーション
