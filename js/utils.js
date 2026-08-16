@@ -37,6 +37,14 @@ export function productMasterStatusPrefix(status) {
   return "";
 }
 
+// YYYY-MM-DD形式の日付文字列を、今年なら「m/d」、それ以外の年なら「yyyy/m/d」に整形する。
+// 在庫確認画面の期限・購入日、賞味期限のお知らせ・使い切り目安の期限で共通利用する
+export function formatMonthDay(dateStr) {
+  const dt = new Date(dateStr + "T00:00:00");
+  const monthDay = `${dt.getMonth() + 1}/${dt.getDate()}`;
+  return dt.getFullYear() === new Date().getFullYear() ? monthDay : `${dt.getFullYear()}/${monthDay}`;
+}
+
 export function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str ?? "";

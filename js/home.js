@@ -6,7 +6,7 @@
 // ==========================================================
 
 import { supabaseClient } from "./config.js";
-import { escapeHtml } from "./utils.js";
+import { escapeHtml, formatMonthDay } from "./utils.js";
 import { switchView } from "./navigation.js";
 import { closeRegisterOverlay, focusInventoryOnItemName } from "./items.js";
 import { ANNIVERSARIES } from "./anniversaries.js";
@@ -105,8 +105,7 @@ function localDateKey(date) {
 }
 
 function formatNoticeExpiry(expiryDate) {
-  const d = new Date(expiryDate + "T00:00:00");
-  return `${d.getMonth() + 1}/${d.getDate()}`;
+  return formatMonthDay(expiryDate);
 }
 
 // タブ切替のたびに再取得せず使い回せるよう、直近の集計結果をキーごとに保持しておく

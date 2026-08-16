@@ -208,7 +208,7 @@ kateikanri-app-Public/
     ├── main.js           エントリーポイント。各モジュールを副作用importで初期化
     ├── config.js         Supabase / Gemini 接続設定
     ├── elements.js        共有DOM要素の集約
-    ├── utils.js           共通ユーティリティ(メッセージ表示・画面上部の共通通知欄・HTMLエスケープ等)。Gemini呼び出しのレート制限エラー判定(`isGeminiRateLimitError`)・1分待って1回だけ自動再試行する`withGeminiRetry(fn, onWaiting)`もここに集約し、`js/aiPhoto.js`・`js/productMaster.js`から共通で呼び出す
+    ├── utils.js           共通ユーティリティ(メッセージ表示・画面上部の共通通知欄・HTMLエスケープ等)。Gemini呼び出しのレート制限エラー判定(`isGeminiRateLimitError`)・1分待って1回だけ自動再試行する`withGeminiRetry(fn, onWaiting)`もここに集約し、`js/aiPhoto.js`・`js/productMaster.js`から共通で呼び出す。日付(YYYY-MM-DD文字列)を「今年ならm/d、それ以外の年ならyyyy/m/d」に整形する`formatMonthDay`(2026-08-16〜)もここに集約し、在庫確認画面の期限・購入日(`js/items.js`の`formatExpiryLabel`・`js/productDetail.js`の`formatPurchaseDateLabel`)、ホーム画面の賞味期限のお知らせ・使い切り目安の期限(`js/home.js`の`formatNoticeExpiry`)から共通で呼び出す
     ├── quantity.js        単位から個数系/定量系(g・ml等)を判定するユーティリティ・AI判定レビューカードの数量欄(プルダウン⇔テンキー)切替。標準商品名(カード)単位の最低数量判定用に、個数系・定量系混在時の合算値(`computeCombinedStockQuantity`)と代表単位(`representativeUnitForEntries`)もここに集約(`js/shopping.js`・`js/items.js`から共通で呼び出す)
     ├── quantityPicker.js  4桁ドラムロール数量ピッカー(他モジュールに依存しない独立部品。登録・在庫・消費から共通で呼び出す)
     ├── units.js           商品名から単位を自動推定

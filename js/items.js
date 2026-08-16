@@ -13,7 +13,7 @@
 
 import { supabaseClient } from "./config.js";
 import { itemListEl, manualAddMessageBox } from "./elements.js";
-import { showMessage, escapeHtml, showAppNotice, productMasterStatusPrefix } from "./utils.js";
+import { showMessage, escapeHtml, showAppNotice, productMasterStatusPrefix, formatMonthDay } from "./utils.js";
 import { syncShoppingListForItem, addToShoppingList, loadShoppingList } from "./shopping.js";
 import { isContinuousUnit, computeCombinedStockQuantity, representativeUnitForEntries } from "./quantity.js";
 import { openQuantityPicker } from "./quantityPicker.js";
@@ -1246,8 +1246,7 @@ export function formatExpiryLabel(expiryDate) {
   const d = daysUntil(expiryDate);
   if (d === null) return { text: "期限未設定", statusClass: "" };
 
-  const dt = new Date(expiryDate + "T00:00:00");
-  const dateText = `${dt.getMonth() + 1}/${dt.getDate()}`;
+  const dateText = formatMonthDay(expiryDate);
 
   if (d < 0) return { text: `期限:${dateText} (期限切れ)`, statusClass: "expired" };
   if (d <= 3) return { text: `期限:${dateText} (あと${d}日)`, statusClass: "soon" };

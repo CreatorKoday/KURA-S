@@ -15,7 +15,7 @@
 // ==========================================================
 
 import { supabaseClient } from "./config.js";
-import { escapeHtml, showAppNotice } from "./utils.js";
+import { escapeHtml, showAppNotice, formatMonthDay } from "./utils.js";
 import { resolveProductMaster, regenerateProductMasterAttributes, getCategoryIcon } from "./productMaster.js";
 import { loadItems, sortLotsByExpiry, formatExpiryLabel } from "./items.js";
 import { syncShoppingListForItem, syncShoppingListForMaster, loadShoppingList } from "./shopping.js";
@@ -286,8 +286,7 @@ document.addEventListener("click", (e) => {
 
 function formatPurchaseDateLabel(purchaseDate) {
   if (!purchaseDate) return "購入日不明";
-  const dt = new Date(purchaseDate + "T00:00:00");
-  return `購入日:${dt.getMonth() + 1}/${dt.getDate()}`;
+  return `購入日:${formatMonthDay(purchaseDate)}`;
 }
 
 function productDetailLotRowHtml(lot, unit) {
