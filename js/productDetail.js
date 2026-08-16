@@ -17,7 +17,7 @@
 import { supabaseClient } from "./config.js";
 import { escapeHtml, showAppNotice, formatMonthDay } from "./utils.js";
 import { resolveProductMaster, regenerateProductMasterAttributes, getCategoryIcon } from "./productMaster.js";
-import { loadItems, sortLotsByExpiry, formatExpiryLabel } from "./items.js";
+import { loadItems, sortLotsByExpiry, formatExpiryLabel, correctLotQuantity } from "./items.js";
 import { syncShoppingListForItem, syncShoppingListForMaster, loadShoppingList } from "./shopping.js";
 import { isContinuousUnit } from "./quantity.js";
 import { openQuantityPicker } from "./quantityPicker.js";
@@ -289,13 +289,18 @@ function formatPurchaseDateLabel(purchaseDate) {
   return `購入日:${formatMonthDay(purchaseDate)}`;
 }
 
-function productDetailLotRowHtml(lot, unit) {
+function productDetailLotRowHtml(lot, unit, itemId) {
   const { text: expiryText } = formatExpiryLabel(lot.expiry_date);
   return `
     <div class="product-detail-lot-row">
       <span class="product-detail-lot-qty">${lot.quantity}${escapeHtml(unit)}</span>
       <span class="product-detail-lot-expiry">${escapeHtml(expiryText)}</span>
       <span class="product-detail-lot-purchase">${escapeHtml(formatPurchaseDateLabel(lot.purchase_date))}</span>
+      <button type="button" class="product-detail-lot-fix-btn" data-action="fix-lot-qty"
+        data-lot-id="${lot.id}" data-item-id="${itemId}" data-qty="${lot.quantity}"
+        data-unit="${escapeHtml(unit)}" data-purchase-date="${escapeHtml(lot.purchase_date || "")}">
+        <span class="material-symbols-rounded">edit</span>修正
+      </button>
     </div>
   `;
 }
@@ -318,9 +323,45 @@ async function loadAndRenderLots(itemId) {
 
   const sorted = sortLotsByExpiry(lots || []);
   listEl.innerHTML = sorted.length
-    ? sorted.map(lot => productDetailLotRowHtml(lot, currentItem.unit)).join("")
+    ? sorted.map(lot => productDetailLotRowHtml(lot, currentItem.unit, itemId)).join("")
     : '<div class="empty-note">在庫がありません。</div>';
 }
+
+// 「修正」ボタン: 登録時の入力ミスをその場で直す(correctLotQuantity、js/items.js)。
+// 新しい購入・消費履歴は作らず、購入履歴のうち一意に対応する行が見つかった場合だけ
+// その数量も書き換える(見つからない場合は履歴には触れず、その旨を通知する)
+document.getElementById("pd-lots-list").addEventListener("click", (e) => {
+  const fixBtn = e.target.closest('[data-action="fix-lot-qty"]');
+  if (!fixBtn) return;
+
+  openQuantityPicker({
+    initialValue: Number(fixBtn.dataset.qty),
+    unit: fixBtn.dataset.unit,
+    title: "数量を修正",
+    onConfirm: async (value) => {
+      const result = await correctLotQuantity(
+        fixBtn.dataset.lotId,
+        fixBtn.dataset.itemId,
+        value,
+        Number(fixBtn.dataset.qty),
+        fixBtn.dataset.purchaseDate || null
+      );
+
+      if (result?.error) {
+        showAppNotice("数量の修正に失敗しました");
+        return;
+      }
+      if (result?.historyUpdated === null) return; // 値が変わっていない
+
+      showAppNotice(
+        result?.historyUpdated
+          ? "数量を修正しました(購入履歴も更新しました)"
+          : "数量を修正しました(購入履歴は自動更新できませんでした)"
+      );
+      await loadAndRenderLots(fixBtn.dataset.itemId);
+    }
+  });
+});
 
 // ---------- 在庫設定(最低数量) ----------
 // 在庫確認画面の数量増減([-][+]・タップでドラムロール)と同じ操作感にしている。

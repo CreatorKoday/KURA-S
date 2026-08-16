@@ -251,6 +251,12 @@ h4.group-subheading {
 
 .lot-row:first-child { border-top: none; padding-top: 2px; }
 
+/* 在庫確認画面のロット行は表示のみ(調整ボタンを廃止)のため、他画面の.lot-row(消費画面など、
+   ボタン類を持つ行)より縦幅を詰める */
+.lot-row.lot-row-compact { padding: 4px 0; }
+
+.lot-row.lot-row-compact:first-child { padding-top: 0; }
+
 .lot-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 
 .lot-expiry { font-size: 11px; color: var(--text-tertiary); }
@@ -280,6 +286,9 @@ h4.group-subheading {
 .qty-num:hover, .qty-num:active { background: var(--primary-soft); }
 
 .qty-unit { font-size: 11px; font-weight: 600; color: var(--text-tertiary); margin-left: 3px; }
+
+/* 在庫確認画面のロット数量(表示専用、.qty-controlの[-][+]ボタンの代わり) */
+.lot-qty-display { flex-shrink: 0; font-size: 15px; font-weight: 700; color: var(--text); }
 
 /* カテゴリー/サブカテゴリーフィルター(絞り込みオーバーレイ)と掛け合わせる商品名検索欄 */
 #inventory-search { margin-bottom: 12px; }

@@ -179,6 +179,17 @@
 .product-detail-lot-expiry,
 .product-detail-lot-purchase { font-size: 12px; color: var(--text-tertiary); }
 
+.product-detail-lot-fix-btn {
+  display: flex; align-items: center; gap: 3px;
+  margin-left: auto;
+  font-size: 12px; font-weight: 600; color: var(--primary);
+  background: var(--primary-soft);
+  border-radius: var(--radius-pill);
+  padding: 4px 10px;
+}
+
+.product-detail-lot-fix-btn .material-symbols-rounded { font-size: 14px; }
+
 #product-detail-empty,
 #product-detail-loading {
   padding: 28px 0 12px;

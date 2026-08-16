@@ -1370,20 +1370,17 @@ function renderItems(items) {
   itemListEl.innerHTML = html;
 }
 
+// 数量の増減・修正はこの画面では行わない(登録・消費画面、または商品名区画の
+// ⓘパネルの「修正」ボタンから行う)。表示のみのため、できるだけ縦幅をコンパクトにする
 function lotRowHtml(item, lot) {
   const { text: expiryText, statusClass } = formatExpiryLabel(lot.expiry_date);
-  const step = isContinuousUnit(item.unit) ? 100 : 1;
 
   return `
-    <div class="lot-row">
+    <div class="lot-row lot-row-compact">
       <div class="lot-info">
         <span class="lot-expiry ${statusClass === "expired" ? "text-danger" : statusClass === "soon" ? "text-warning" : ""}">${expiryText}</span>
       </div>
-      <div class="qty-control">
-        <button class="qty-btn" data-action="adjust-lot-qty" data-lot-id="${lot.id}" data-item-id="${item.id}" data-current-qty="${lot.quantity}" data-delta="-${step}" aria-label="減らす"><span class="material-symbols-rounded">remove</span></button>
-        <span class="qty-num" data-action="edit-lot-qty" data-lot-id="${lot.id}" data-item-id="${item.id}" data-qty="${lot.quantity}" data-unit="${escapeHtml(item.unit)}">${lot.quantity}<span class="qty-unit">${escapeHtml(item.unit)}</span></span>
-        <button class="qty-btn" data-action="adjust-lot-qty" data-lot-id="${lot.id}" data-item-id="${item.id}" data-current-qty="${lot.quantity}" data-delta="${step}" aria-label="増やす"><span class="material-symbols-rounded">add</span></button>
-      </div>
+      <span class="lot-qty-display">${lot.quantity}<span class="qty-unit">${escapeHtml(item.unit)}</span></span>
     </div>
   `;
 }
@@ -1603,26 +1600,53 @@ export async function persistLotQty(lotId, itemId, newQty, previousQty) {
   loadItems();
 }
 
-// ロット単位の数量増減([-][+]ボタン)
-async function adjustLotQty(lotId, itemId, currentQty, delta) {
-  await persistLotQty(lotId, itemId, Number(currentQty) + delta, currentQty);
+// 商品名区画のⓘパネル「購入日・削除」の「修正」ボタン用: 登録時の入力ミスをその場で
+// 直す(persistLotQtyとは異なり、新しい購入・消費履歴は作らない)。購入履歴のうち、
+// 「商品・区分=購入・修正前の数量・購入日」がすべて一致する行がちょうど1件だけ
+// 見つかった場合に限り、その行の数量も一緒に書き換える。一部消費済みのロットは
+// 購入履歴に記録されている数量(元の購入数量)と修正前の現在値が一致しないため、
+// 0件ヒットとなり履歴には触れない(誤った行を書き換えるより安全なため)。
+// 戻り値のhistoryUpdatedは呼び出し元での通知の出し分けに使う
+export async function correctLotQuantity(lotId, itemId, newQty, previousQty, purchaseDate) {
+  const clamped = Math.max(0, Number(newQty) || 0);
+  const oldQty = Number(previousQty) || 0;
+  if (clamped === oldQty) return { historyUpdated: null };
+
+  if (clamped <= 0) {
+    const { error } = await supabaseClient.from("item_lots").delete().eq("id", lotId);
+    if (error) { console.error("ロットの削除に失敗:", error); return { error: true }; }
+  } else {
+    const { error } = await supabaseClient
+      .from("item_lots")
+      .update({ quantity: clamped, updated_at: new Date().toISOString() })
+      .eq("id", lotId);
+    if (error) { console.error("ロットの数量修正に失敗:", error); return { error: true }; }
+  }
+
+  let historyUpdated = false;
+  if (purchaseDate) {
+    const dayStart = new Date(purchaseDate + "T00:00:00").toISOString();
+    const dayEnd = new Date(purchaseDate + "T23:59:59.999").toISOString();
+    const { data: matches, error: matchError } = await supabaseClient
+      .from("item_history")
+      .select("id")
+      .eq("item_id", itemId)
+      .eq("event_type", "purchase")
+      .eq("quantity", oldQty)
+      .gte("occurred_at", dayStart)
+      .lte("occurred_at", dayEnd);
+
+    if (!matchError && matches && matches.length === 1) {
+      const { error: updateError } = await supabaseClient
+        .from("item_history")
+        .update({ quantity: clamped })
+        .eq("id", matches[0].id);
+      historyUpdated = !updateError;
+    }
+  }
+
+  await syncShoppingListForItem(itemId);
+  loadItems();
+  return { historyUpdated };
 }
 
-// カード内のボタンはloadItems()のたびに再生成されるため、itemListElへの委譲で拾う
-itemListEl.addEventListener("click", (e) => {
-  const qtyBtn = e.target.closest('[data-action="adjust-lot-qty"]');
-  if (qtyBtn) {
-    adjustLotQty(qtyBtn.dataset.lotId, qtyBtn.dataset.itemId, Number(qtyBtn.dataset.currentQty), Number(qtyBtn.dataset.delta));
-    return;
-  }
-
-  const qtyNum = e.target.closest('[data-action="edit-lot-qty"]');
-  if (qtyNum) {
-    openQuantityPicker({
-      initialValue: Number(qtyNum.dataset.qty),
-      unit: qtyNum.dataset.unit,
-      title: "在庫数を設定",
-      onConfirm: (value) => persistLotQty(qtyNum.dataset.lotId, qtyNum.dataset.itemId, value, qtyNum.dataset.qty)
-    });
-  }
-});
