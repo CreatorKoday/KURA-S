@@ -66,18 +66,6 @@
 
 .product-detail-name-row { display: flex; align-items: center; gap: 6px; }
 
-.product-detail-name-edit-btn {
-  display: flex; align-items: center; justify-content: center;
-  width: 24px; height: 24px; flex-shrink: 0;
-  background: var(--bg-1); color: var(--text-tertiary);
-  border: 1px solid var(--border);
-  border-radius: 50%;
-}
-
-.product-detail-name-edit-btn:hover { color: var(--primary); background: var(--primary-soft); }
-
-.product-detail-name-edit-btn .material-symbols-rounded { font-size: 16px; }
-
 .product-detail-name-edit-form {
   display: flex; align-items: center; gap: 6px;
   margin-top: 2px;
