@@ -62,10 +62,9 @@ function renderView() {
   const icon = currentIcon || getCategoryIcon(currentMaster.type, currentMaster.category);
   document.getElementById("pd-icon").textContent = icon;
   document.getElementById("pd-icon-value").textContent = icon;
-  // masterモードは特定の商品名を持たないため、商品名の見出し(修正ボタン含む)は表示せず標準商品名(下の行)だけにする
+  // masterモードは特定の商品名を持たないため、商品名の見出しは表示せず標準商品名(下の行)だけにする
   document.getElementById("pd-item-name").textContent = currentMode === "master" ? "" : currentItem.name;
-  document.getElementById("pd-item-name-row").classList.toggle("hidden", currentMode === "master");
-  document.getElementById("pd-item-name-edit-form").classList.add("hidden");
+  document.getElementById("pd-item-name").classList.toggle("hidden", currentMode === "master");
   document.getElementById("pd-canonical-name").textContent = "標準商品名: " + currentMaster.canonical_name;
   document.getElementById("pd-canonical-reading").textContent = currentMaster.canonical_name_reading || "読み方未登録";
   hide("pd-canonical-reading"); // 商品を切り替えるたびに閉じた状態に戻す
@@ -170,6 +169,10 @@ function applySectionVisibility(mode) {
   document.getElementById("pd-threshold-section").classList.toggle("hidden", !showThreshold);
   document.getElementById("pd-lots-section").classList.toggle("hidden", !showLots);
   document.getElementById("product-detail-delete-btn").classList.toggle("hidden", !showDelete);
+  // 商品名の修正(items.name)はitem/fallbackモードのみ。この節はpd-lots-sectionと表示条件を揃えている
+  document.getElementById("pd-item-name-section").classList.toggle("hidden", !showLots);
+  document.getElementById("pd-item-name-edit-form").classList.add("hidden");
+  document.getElementById("pd-item-name-row").classList.remove("hidden");
 
   // 商品属性(表示/編集/未作成/読込中)は、いったんすべて隠してから
   // モードごとの後続処理(renderView/show("product-detail-empty")など)で必要な分だけ出し直す。
@@ -192,6 +195,8 @@ async function openProductDetail({ mode, itemId, itemName, unit, productMasterId
   currentMasterId = mode === "master" ? productMasterId : null;
   currentIcon = null;
   thresholdCtx = null;
+
+  if (currentItem) document.getElementById("pd-item-editable-name").textContent = currentItem.name;
 
   show("product-detail-overlay");
   applySectionVisibility(mode);
@@ -446,7 +451,7 @@ document.getElementById("pd-item-name-save-btn").addEventListener("click", async
   }
 
   currentItem.name = newName;
-  document.getElementById("pd-item-name").textContent = newName;
+  document.getElementById("pd-item-editable-name").textContent = newName;
   closeItemNameEdit();
   showAppNotice("商品名を修正しました");
   loadItems();
