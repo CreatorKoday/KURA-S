@@ -47,6 +47,9 @@
 html {
   scrollbar-width: thin;
   scrollbar-color: var(--border-strong) transparent;
+  /* ページ本体(bodyのグラデーション背景)の下に、ホーム画面追加時の高さ計算のずれで
+     隙間ができた場合の保険。真っ白ではなくページに馴染む色にしておく(2026-08-16〜) */
+  background: var(--bg-1);
 }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -57,6 +60,10 @@ html {
 
 html, body {
   height: 100%;
+  /* --app-height(js/utils.jsのsetupAppHeightVar()がwindow.innerHeightから設定・更新する)
+     が利用可能ならそちらを優先する。ホーム画面に追加したアプリでは100%/100dvhの計算が
+     実際の画面より低くなることがあり、下部に余白ができてしまうため(2026-08-16〜) */
+  height: var(--app-height, 100%);
   overflow: hidden;
   overscroll-behavior: none;
   touch-action: pan-y;
@@ -87,6 +94,7 @@ body {
   padding: max(env(safe-area-inset-top), 22px) 18px 100px;
   height: 100%;
   height: 100dvh;
+  height: var(--app-height, 100dvh);
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;

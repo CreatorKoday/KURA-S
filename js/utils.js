@@ -2,6 +2,23 @@
 // 共通ユーティリティ(メッセージ表示・HTMLエスケープ・数量プルダウン生成)
 // ==========================================================
 
+// ホーム画面に追加したアプリ(スタンドアロン)では、CSSの100%/100dvhが実際の画面の高さより
+// 低く計算されることがあり、.wrap等がその分低くなって下部に余白ができてしまう。
+// window.innerHeightを都度CSS変数--app-heightへ反映し、common.cssの.wrap/html,bodyが
+// これを優先して使うことで、実際の画面の高さに合わせる(2026-08-16〜)
+function setupAppHeightVar() {
+  const apply = () => {
+    document.documentElement.style.setProperty("--app-height", `${window.innerHeight}px`);
+  };
+  apply();
+  window.addEventListener("resize", apply);
+  window.addEventListener("orientationchange", apply);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", apply);
+  }
+}
+setupAppHeightVar();
+
 export function showMessage(el, text, isError) {
   el.textContent = text;
   el.className = isError ? "msg-error" : "msg-ok";
