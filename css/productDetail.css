@@ -69,7 +69,8 @@
 .product-detail-name-edit-btn {
   display: flex; align-items: center; justify-content: center;
   width: 24px; height: 24px; flex-shrink: 0;
-  background: none; color: var(--text-tertiary);
+  background: var(--bg-1); color: var(--text-tertiary);
+  border: 1px solid var(--border);
   border-radius: 50%;
 }
 

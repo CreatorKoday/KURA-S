@@ -183,7 +183,7 @@ function applySectionVisibility(mode) {
   hide("product-detail-loading");
 
   const titleEl = document.getElementById("product-detail-title");
-  titleEl.textContent = mode === "master" ? "商品属性の詳細" : mode === "item" ? "購入日・削除" : "商品の詳細";
+  titleEl.textContent = mode === "master" ? "商品属性の詳細" : mode === "item" ? "登録内容の確認・修正" : "商品の詳細";
 }
 
 // ---------- 開閉 ----------
