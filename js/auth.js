@@ -324,6 +324,15 @@ function renderNicknameSuggestions() {
   listEl.classList.remove("hidden");
 }
 
+document.getElementById("join-room-key-toggle").addEventListener("click", (e) => {
+  const input = document.getElementById("join-room-key");
+  const icon = e.currentTarget.querySelector(".material-symbols-rounded");
+  const showing = input.type === "text";
+  input.type = showing ? "password" : "text";
+  icon.textContent = showing ? "visibility" : "visibility_off";
+  e.currentTarget.setAttribute("aria-label", showing ? "ルームキーを表示" : "ルームキーを隠す");
+});
+
 document.getElementById("join-room-key").addEventListener("input", () => {
   clearTimeout(nicknameFetchTimer);
   nicknameFetchTimer = setTimeout(fetchExistingNicknames, 350);

@@ -48,10 +48,15 @@
          既定では「キーで入室」を表示し、新規作成は「新規作成はこちら」から別画面で行う -->
     <div id="auth-join-form">
       <label for="join-room-key">ルームキー</label>
-      <input type="text" id="join-room-key" placeholder="共有されたキーを入力">
+      <div class="input-with-toggle">
+        <input type="password" id="join-room-key" placeholder="共有されたキーを入力" autocomplete="current-password">
+        <button type="button" class="input-toggle-visibility-btn" id="join-room-key-toggle" aria-label="ルームキーを表示">
+          <span class="material-symbols-rounded">visibility</span>
+        </button>
+      </div>
 
       <label for="join-nickname">ニックネーム</label>
-      <input type="text" id="join-nickname" placeholder="例: はなこ" autocomplete="off">
+      <input type="text" id="join-nickname" placeholder="例: はなこ" autocomplete="username">
       <div id="join-nickname-suggestions" class="hidden"></div>
 
       <button class="btn-primary" id="join-room-btn"><span class="material-symbols-rounded">login</span> 入室する</button>
