@@ -142,7 +142,16 @@ document.addEventListener("click", (e) => {
     const numEl = fractionBtn.closest(".lot-row").querySelector('[data-action="edit-consume-lot-qty"]');
     const currentQty = Number(numEl.dataset.qty);
     const consumedFraction = Number(fractionBtn.dataset.fraction);
-    updateConsumeLotQtyDisplay(numEl, Math.round(currentQty * (1 - consumedFraction)));
+    // 個数系(4個入りパックを1個として登録している場合など)で残り1個以下になったら、
+    // 「現在値に対する割合」ではなく「1個(＝パック全体)に対する割合」を固定幅で
+    // 減らしていく(0.25刻みの階段状: 1→0.75→0.5→0.25→0)。連続で押しても
+    // 0.375のような中途半端な値にならないようにするため。定量系(g/ml等)や
+    // 個数系でも複数個残っている場合は、これまで通り現在値に対する割合で計算する
+    const useWholeUnitSteps = !isContinuousUnit(numEl.dataset.unit) && currentQty <= 1;
+    const newQty = useWholeUnitSteps
+      ? Math.max(0, currentQty - consumedFraction)
+      : Math.round(currentQty * (1 - consumedFraction));
+    updateConsumeLotQtyDisplay(numEl, newQty);
     return;
   }
 

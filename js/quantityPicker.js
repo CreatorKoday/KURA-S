@@ -59,7 +59,12 @@ wheelCols.forEach((col, colIndex) => {
 // initialValue: 0〜9999の数量。unit/titleは表示のみに使う。onConfirm(value)は「完了」タップ時に呼ばれる
 export function openQuantityPicker({ initialValue = 0, unit = "", title = "数量を選択", onConfirm } = {}) {
   confirmCallback = onConfirm || null;
-  const clamped = Math.max(0, Math.min(9999, Math.round(Number(initialValue) || 0)));
+  const rawValue = Number(initialValue) || 0;
+  // このピッカーは整数(0〜9999)しか扱えないが、消費画面の1/4・半分ボタンは
+  // 個数系の商品を1個未満(0.25/0.5/0.75)にできる。そのまま四捨五入すると
+  // 0.25が0に丸められて「消費していない」ように見えてしまうため、1未満の
+  // 端数はここでは一律「1」として開く(0はすでに整数なのでそのまま0)
+  const clamped = rawValue > 0 && rawValue < 1 ? 1 : Math.max(0, Math.min(9999, Math.round(rawValue)));
   const digits = String(clamped).padStart(4, "0").split("").map(Number);
 
   titleEl.textContent = title;
